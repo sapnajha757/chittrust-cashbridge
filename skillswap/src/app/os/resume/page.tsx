@@ -455,9 +455,17 @@ function SectionPanel({
 }) {
   return (
     <div className={`glass-panel rounded-2xl border transition-all duration-200 ${active ? "border-border-strong" : "border-border-soft"}`}>
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-6 py-4 group"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+        className="w-full flex items-center justify-between px-6 py-4 group cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/20 rounded-2xl"
       >
         <div className="flex items-center gap-3">
           <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${active ? "bg-primary/15 border border-primary/25" : "bg-surface/60 border border-border-soft group-hover:bg-primary/10"}`}>
@@ -480,7 +488,7 @@ function SectionPanel({
           )}
           {active ? <ChevronUp className="w-4 h-4 text-text-faint" /> : <ChevronDown className="w-4 h-4 text-text-faint" />}
         </div>
-      </button>
+      </div>
       <AnimatePresence>
         {active && (
           <motion.div
