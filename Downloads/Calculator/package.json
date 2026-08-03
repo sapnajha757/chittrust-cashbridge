@@ -1,0 +1,13 @@
+{
+  "name": "calculator",
+  "version": "1.0.0",
+  "description": "Simple modern glassmorphism calculator",
+  "main": "script.js",
+  "scripts": {
+    "start": "python -m http.server 8080",
+    "dev": "python -m http.server 8080"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
