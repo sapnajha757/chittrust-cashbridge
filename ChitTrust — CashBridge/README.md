@@ -20,14 +20,15 @@ It bridges the gap between **digital-first members** (who prefer UPI/online paym
 
 ---
 
-## 📈 Explainable Trust Score Engine (Phase 7 Completed)
+## 💵 CashBridge Doorstep Cash Verification System (Phase 6 Completed)
 
-For complete mathematical formulas, streak bonus rules, and scoring test matrices, see [docs/trust_score.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/trust_score.md).
+For complete agent workflows, authorization rules, and signed URL access specs, see [docs/cashbridge.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/cashbridge.md).
 
-- **Equal Credit Weight**: CashBridge cash payments (+5) and Razorpay UPI payments (+5) receive identical point credit weight.
-- **Deterministic Engine (`TrustScoreService`)**: Reconstructs score snapshots from chronological contribution history (`Base: 100`, `On-time: +5`, `Late ≤7d: -5`, `Late >7d: -10`, `Missed: -20`, `3-Month Streak: +10`).
-- **Event Audit Ledger (`trust_score_events`)**: Records every point transaction and streak bonus with unique idempotency constraints.
-- **Portal & Breakdown UI (`/profile/trust-score`)**: Itemized mathematical point breakdown and chronological score timeline.
+- **Mobile-First Agent PWA App (`/dashboard/agent`)**: Simple, high-contrast PWA interface for outdoor doorstep cash collection.
+- **6-Step Doorstep Entry Portal (`/agent/cash-entry`)**: Step-by-step group selection, cash member verification, expected amount check, and photo proof capture.
+- **Camera & Photo Proof Capture (`CashProofCapture`)**: Mobile camera integration (`capture="environment"`), image preview, and mandatory proof verification.
+- **Private Storage & Signed URLs**: Photo proof stored in private bucket `cash-payment-proofs` with 15-minute expiring signed URLs.
+- **Permanent Agent Attribution & Notifications**: Contributions store `recorded_by_agent_id` and issue in-app member receipt notifications (`notifications` table).
 
 ---
 
@@ -37,7 +38,7 @@ For complete mathematical formulas, streak bonus rules, and scoring test matrice
 - **Framework**: Next.js 14+ (App Router)
 - **Language**: TypeScript
 - **State & Auth**: Supabase Auth + React Auth Context (`useAuth`)
-- **Payments**: Razorpay Checkout SDK (Test Mode)
+- **Payments**: Razorpay Checkout SDK (Test Mode) + Mobile Camera Capture
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 
