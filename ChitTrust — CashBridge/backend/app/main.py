@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging
@@ -17,12 +17,21 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_STR}/redoc",
 )
 
+# Security Headers Middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response: Response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -32,14 +41,16 @@ app.add_exception_handler(Exception, generic_exception_handler)
 
 # Include API Routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
-# Direct route /api/health for top-level convenience
 app.include_router(health_router, prefix="/api")
 
+@app.get("/health")
+async def top_level_health():
+    return {"status": "ok", "environment": settings.ENVIRONMENT, "demo_mode": settings.DEMO_MODE}
 
 @app.get("/")
 async def root():
     return {
         "message": "Welcome to ChitTrust + CashBridge API",
         "docs": f"{settings.API_V1_STR}/docs",
-        "health": f"{settings.API_V1_STR}/health",
+        "health": "/health",
     }
