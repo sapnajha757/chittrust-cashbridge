@@ -12,6 +12,8 @@ from app.api.v1.endpoints import (
     voice,
     voice_telephony,
     voice_demo,
+    auctions,
+    payouts,
 )
 
 api_router = APIRouter()
@@ -27,3 +29,5 @@ api_router.include_router(trust_score.router, prefix="/users", tags=["Trust Scor
 api_router.include_router(voice.router, prefix="/voice", tags=["Voice AI"])
 api_router.include_router(voice_telephony.router, prefix="/voice", tags=["Voice Telephony Webhooks"])
 api_router.include_router(voice_demo.router, prefix="/voice", tags=["Voice Simulator API"])
+api_router.include_router(auctions.router, tags=["Auctions"])
+api_router.include_router(payouts.router, tags=["Payouts"])

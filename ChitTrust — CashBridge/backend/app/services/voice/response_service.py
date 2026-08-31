@@ -2,6 +2,7 @@ import logging
 from typing import Dict, Any, Optional
 from app.services.trust_score_service import trust_score_service
 from app.services.contribution_service import DEMO_CONTRIBUTIONS
+from app.services.payout_service import payout_service
 
 logger = logging.getLogger("chittrust.voice.response")
 
@@ -29,6 +30,36 @@ class VoiceResponseService:
         return {
             "intent": "TRUST_SCORE",
             "score": score,
+            "prompt_text": prompt,
+            "language": language,
+        }
+
+    @classmethod
+    def build_auction_result_response(cls, language: str = "hi") -> Dict[str, Any]:
+        if language == "hi":
+            prompt = "Is mahine ka auction complete ho gaya hai. Payout amount ₹8,500 hai aur winner Anil Verma hain."
+        else:
+            prompt = "This month's auction is complete. Payout amount is ₹8,500 and the winner is Anil Verma."
+
+        return {
+            "intent": "AUCTION_RESULT",
+            "prompt_text": prompt,
+            "language": language,
+        }
+
+    @classmethod
+    def build_payout_status_response(cls, membership_id: str, language: str = "hi") -> Dict[str, Any]:
+        payout = payout_service.get_payout("p1111111-1111-1111-1111-111111111111")
+        amount = int(payout["amount"])
+        status_text = payout["status"]
+
+        if language == "hi":
+            prompt = f"Aapka ₹{amount} ka payout status {status_text} hai. Payment mode {payout['mode']} hai."
+        else:
+            prompt = f"Your payout of ₹{amount} is currently {status_text} via {payout['mode']}."
+
+        return {
+            "intent": "PAYOUT_STATUS",
             "prompt_text": prompt,
             "language": language,
         }

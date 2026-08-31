@@ -13,22 +13,32 @@ class IntentDetector:
 
         clean = text.lower().strip()
 
-        # 1. Trust Score Intent
+        # 1. Auction Result Intent
+        auction_keywords = ["auction", "winner", "bidding", "kon jeeta", "kaun jeeta", "payout amount", "jeeta kaun"]
+        if any(k in clean for k in auction_keywords):
+            return "AUCTION_RESULT"
+
+        # 2. Payout Status Intent
+        payout_keywords = ["payout", "payout status", "paisa mila", "cash handover", "payout hua kya"]
+        if any(k in clean for k in payout_keywords):
+            return "PAYOUT_STATUS"
+
+        # 3. Trust Score Intent
         score_keywords = ["score", "trust score", "mera score", "kitna score", "points", "rating", "cibil"]
         if any(k in clean for k in score_keywords):
             return "TRUST_SCORE"
 
-        # 2. Payment Status Intent
+        # 4. Payment Status Intent
         status_keywords = ["payment", "status", "batao payment", "hua kya", "jama", "paid", "dena baki"]
         if any(k in clean for k in status_keywords):
             return "PAYMENT_STATUS"
 
-        # 3. Recent Payment Intent
+        # 5. Recent Payment Intent
         recent_keywords = ["recent", "haal ka", "last payment", "pichla payment", "aakhri payment"]
         if any(k in clean for k in recent_keywords):
             return "RECENT_PAYMENT"
 
-        # 4. Control Intents
+        # 6. Control Intents
         if any(k in clean for k in ["repeat", "dobara", "fir se", "phir se"]):
             return "REPEAT"
         if any(k in clean for k in ["help", "madad", "samajh nahi aaya"]):

@@ -12,15 +12,15 @@ It bridges the gap between **digital-first members** (who prefer UPI/online paym
 
 ---
 
-## 📞 Multilingual Voice IVR Subsystem (Phase 8 Completed)
+## 🏆 Monthly Auction & Payout Engine (Phase 9 Completed)
 
-For complete architecture, provider abstraction, and Hindi speech specs, see [docs/voice.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/voice.md).
+For complete auction semantics, discount formulas, and cash payout handover specs, see [docs/auctions_payouts.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/auctions_payouts.md).
 
-- **Feature Phone Accessibility Layer**: Allows users to dial a toll-free number and query their Trust Score and payment status via keypad digits or natural Hindi speech.
-- **Single Source of Truth**: Consumes real database records directly from `TrustScoreService` and `ContributionService`.
-- **Telephony Provider Abstraction**: Configurable support for `VOICE_PROVIDER=mock` (developer simulator), `twilio` (TwiML XML), and `exotel` (IVR JSON).
-- **Deterministic Intent Classification**: Keyword classification (`intent_detector.py`) ensures AI models never guess financial numbers.
-- **Developer Voice Simulator Portal (`/dev/voice-demo`)**: Interactive web simulator with DTMF keypad, Hindi speech chips, live transcripts, and PIN authentication.
+- **Bid Auctions & Lucky Draws**: Highest valid discount wins (`Net Payout = Total Pot - Winning Discount`). Supports server-side lucky draw selection.
+- **Fixed-Point Monetary Precision**: Uses Python `Decimal` arithmetic for exact financial calculations.
+- **CashBridge Doorstep Payout Handover**: Organizers assign CashBridge Agents to deliver cash payouts for cash winners, confirmed with mandatory photo proof.
+- **Dedicated Monthly Auction Portal (`/groups/[id]/auction`)**: Visual timeline (`AuctionTimeline`), pot statistics (`AuctionCard`), member bidding form (`BidForm`), and agent handover modal (`PayoutConfirmModal`).
+- **Voice IVR Integration**: Voice Assistant queries auction winners and payout statuses in natural Hindi (*"Is mahine ka auction complete ho gaya hai. Payout amount ₹8,500 hai."*).
 
 ---
 
@@ -83,6 +83,7 @@ Available at `http://localhost:8000`.
 - [x] **Phase 6: CashBridge Doorstep Cash Verification Workflows** (Mobile-first Agent App, Photo Proof Capture, Private Storage, Notifications)
 - [x] **Phase 7: Explainable TrustScore Calculation Engine** (Equal Credit Weight, Deterministic Points, Audit Ledger, Timeline UI)
 - [x] **Phase 8: Multilingual Voice IVR & Hindi Trust Score Subsystem** (Feature Phone Telephony, Hindi Voice Prompts, Provider Abstraction, Voice Simulator)
+- [x] **Phase 9: Monthly Auction & Payout Engine** (Bid Auctions, Lucky Draws, Net Payout Calculation, Doorstep Cash Payouts, Audit Trail)
 
 ---
 

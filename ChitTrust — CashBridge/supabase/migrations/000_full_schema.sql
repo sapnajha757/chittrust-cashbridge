@@ -1,6 +1,6 @@
 -- ============================================================================
 -- CHITTRUST + CASHBRIDGE: FULL SUPABASE DATABASE SCHEMA MIGRATION
--- Combine 001 through 023 for single-shot execution in Supabase SQL Editor
+-- Combine 001 through 024 for single-shot execution in Supabase SQL Editor
 -- ============================================================================
 
 -- 001_extensions.sql
@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS contributions (
     )
 );
 
--- 008_payouts.sql
+-- 008_payouts.sql & 024_auctions_payouts_engine.sql
 CREATE TABLE IF NOT EXISTS payouts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
@@ -152,6 +152,9 @@ CREATE TABLE IF NOT EXISTS payouts (
     payout_date TIMESTAMPTZ DEFAULT NOW(),
     auction_discount NUMERIC(12,2) NULL,
     transaction_reference TEXT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    assigned_agent_id UUID NULL REFERENCES profiles(id),
+    cash_proof_url TEXT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
     CONSTRAINT uq_group_month_payout UNIQUE (group_id, month_number),
@@ -235,14 +238,16 @@ CREATE TABLE IF NOT EXISTS voice_call_logs (
     ended_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 010_auctions.sql
+-- 010_auctions.sql & 024_auctions_payouts_engine.sql
 CREATE TABLE IF NOT EXISTS auctions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     month_number INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
     winner_membership_id UUID NULL REFERENCES memberships(id),
     winning_bid_discount NUMERIC(12,2) NULL,
     conducted_at TIMESTAMPTZ DEFAULT NOW(),
+    closed_at TIMESTAMPTZ NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
     CONSTRAINT uq_group_month_auction UNIQUE (group_id, month_number),
@@ -250,12 +255,13 @@ CREATE TABLE IF NOT EXISTS auctions (
     CONSTRAINT chk_winning_bid_discount_nonnegative CHECK (winning_bid_discount IS NULL OR winning_bid_discount >= 0)
 );
 
--- 011_auction_bids.sql
+-- 011_auction_bids.sql & 024_auctions_payouts_engine.sql
 CREATE TABLE IF NOT EXISTS auction_bids (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     auction_id UUID NOT NULL REFERENCES auctions(id) ON DELETE CASCADE,
     membership_id UUID NOT NULL REFERENCES memberships(id) ON DELETE CASCADE,
     bid_discount NUMERIC(12,2) NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
     CONSTRAINT chk_bid_discount_nonnegative CHECK (bid_discount >= 0)
@@ -334,7 +340,10 @@ CREATE INDEX IF NOT EXISTS idx_contributions_payment_status ON contributions(pay
 CREATE INDEX IF NOT EXISTS idx_contributions_agent ON contributions(recorded_by_agent_id) WHERE recorded_by_agent_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_payouts_group_id ON payouts(group_id);
 CREATE INDEX IF NOT EXISTS idx_payouts_membership_id ON payouts(membership_id);
+CREATE INDEX IF NOT EXISTS idx_payouts_status ON payouts(status);
+CREATE INDEX IF NOT EXISTS idx_payouts_agent ON payouts(assigned_agent_id) WHERE assigned_agent_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_auctions_group_id ON auctions(group_id);
+CREATE INDEX IF NOT EXISTS idx_auctions_status ON auctions(status);
 CREATE INDEX IF NOT EXISTS idx_auction_bids_auction_id ON auction_bids(auction_id);
 CREATE INDEX IF NOT EXISTS idx_trust_scores_user_id ON trust_scores(user_id);
 CREATE INDEX IF NOT EXISTS idx_trust_events_user_id ON trust_score_events(user_id);
