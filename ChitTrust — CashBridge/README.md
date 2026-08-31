@@ -20,14 +20,14 @@ It bridges the gap between **digital-first members** (who prefer UPI/online paym
 
 ---
 
-## 👥 Groups & Membership Architecture (Phase 4 Completed)
+## 💳 Digital Contributions & Razorpay Test Integration (Phase 5 Completed)
 
-For complete group lifecycle diagrams and authorization matrix, see [docs/groups.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/groups.md).
+For complete payment flow diagrams, HMAC verification algorithms, and webhook idempotency specs, see [docs/payments.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/payments.md).
 
-- **Group Creation (`/groups/create`)**: Organizers set pool amount, duration, monthly contribution, and auction allocation type (`bid` vs `lucky_draw`).
-- **Dual Member Onboarding (`/groups/[id]/members/add`)**: Supports inviting Digital members (UPI) and Cash members (assigning verified doorstep CashBridge Agents).
-- **Non-Registered Invitations (`group_invitations`)**: Allows organizers to invite users by phone number before they sign up.
-- **Exited Member Preservation**: Member exit sets `status = 'exited'` instead of deleting records, preserving historical audit logs.
+- **Server-Side Order Creation (`/api/v1/contributions/upi/order`)**: Calculates amount in integer paise from `group.contribution_per_month` (client amounts strictly ignored).
+- **Cryptographic Signature Verification (`/api/v1/contributions/upi/verify`)**: Validates Razorpay callback parameters using constant-time HMAC-SHA256 comparison before marking contribution `successful`.
+- **Webhook Processing (`/api/v1/payments/razorpay/webhook`)**: Verified event updates and idempotency ledger (`payment_webhook_events`).
+- **Receipts & Ledgers**: Payment receipts with transaction references (`PaymentReceipt`) and organizer collection ledgers (`ContributionLedger`).
 
 ---
 
@@ -37,11 +37,13 @@ For complete group lifecycle diagrams and authorization matrix, see [docs/groups
 - **Framework**: Next.js 14+ (App Router)
 - **Language**: TypeScript
 - **State & Auth**: Supabase Auth + React Auth Context (`useAuth`)
+- **Payments**: Razorpay Checkout SDK (Test Mode)
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 
 ### Backend & Database
 - **Framework**: FastAPI (Python 3.11+)
+- **Payments SDK**: Razorpay Python SDK (`razorpay`)
 - **Database**: Supabase PostgreSQL + Auth + Storage
 - **Security**: Row Level Security (RLS) & Pgcrypto
 
@@ -83,9 +85,9 @@ Available at `http://localhost:8000`.
 - [x] **Phase 2: Database Schemas, RLS Security, Triggers & Storage** (10 Tables, 9 Enums, Triggers, RLS, Storage Bucket)
 - [x] **Phase 3: Authentication, Onboarding & Role-Based Access** (Phone OTP, Profile Setup, Middleware, Dashboards)
 - [x] **Phase 4: Group Creation & Membership Management** (Group Setup, Digital/Cash Invites, Agent Assignment, Exited State)
-- [ ] **Phase 5: Dual Contribution & CashBridge Agent Verification Workflows**
-- [ ] **Phase 6: TrustScore Calculation Engine & Auction Bidding Engine**
-- [ ] **Phase 7: Razorpay UPI & Twilio SMS Alerts Integration**
+- [x] **Phase 5: Digital Contributions & Razorpay Test Payments** (Razorpay Test Mode, HMAC-SHA256 Verification, Webhook Idempotency, Receipts)
+- [ ] **Phase 6: CashBridge Doorstep Cash Verification Workflows**
+- [ ] **Phase 7: TrustScore Calculation Engine & Auction Bidding Engine**
 - [ ] **Phase 8: Groq Multilingual Voice AI Assistance for Low-Literacy Users**
 
 ---

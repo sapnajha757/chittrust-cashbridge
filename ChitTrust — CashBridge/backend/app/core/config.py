@@ -31,9 +31,12 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = "placeholder_key"
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/chittrust"
 
-    # Third Party Integrations (Future Phases)
-    RAZORPAY_KEY_ID: str = ""
-    RAZORPAY_KEY_SECRET: str = ""
+    # Razorpay Integration (Test Mode)
+    RAZORPAY_KEY_ID: str = "rzp_test_placeholder"
+    RAZORPAY_KEY_SECRET: str = "placeholder_secret"
+    RAZORPAY_WEBHOOK_SECRET: str = "whsec_placeholder"
+
+    # Twilio SMS / Voice (Future Phase)
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_PHONE_NUMBER: str = ""

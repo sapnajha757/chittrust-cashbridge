@@ -1,17 +1,66 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wallet, ShieldCheck, Clock, Award, ArrowRight } from 'lucide-react';
+import { Wallet, ShieldCheck, Clock, Award, ArrowRight, CreditCard } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { ContributionCard } from '@/components/contributions/ContributionCard';
+import { PaymentReceipt } from '@/components/contributions/PaymentReceipt';
+import { PaymentProcessingState } from '@/components/contributions/PaymentProcessingState';
 
 export default function MemberDashboardPage() {
   const { profile, trustScore } = useAuth();
 
+  const [processing, setProcessing] = useState(false);
+  const [currentDue, setCurrentDue] = useState<{
+    membershipId: string;
+    groupName: string;
+    monthNumber: number;
+    amount: number;
+    paymentStatus: string;
+  }>({
+    membershipId: '22222222-2222-2222-2222-222222222222',
+    groupName: 'Ganesh Traders Chit #1',
+    monthNumber: 2,
+    amount: 2500.0,
+    paymentStatus: 'pending',
+  });
+
+  const [receipt, setReceipt] = useState<{
+    isOpen: boolean;
+    groupName: string;
+    monthNumber: number;
+    amount: number;
+    paymentMode: string;
+    transactionRef: string;
+    paymentDate: string;
+  }>({
+    isOpen: false,
+    groupName: '',
+    monthNumber: 1,
+    amount: 2500,
+    paymentMode: 'UPI',
+    transactionRef: '',
+    paymentDate: new Date().toISOString(),
+  });
+
   const currentScore = trustScore?.score ?? 100;
   const scoreTier = trustScore?.tier ? trustScore.tier.toUpperCase() : 'STARTER';
+
+  const handlePaymentSuccess = (receiptData: any) => {
+    setCurrentDue((prev) => ({ ...prev, paymentStatus: 'successful' }));
+    setReceipt({
+      isOpen: true,
+      groupName: receiptData.groupName,
+      monthNumber: receiptData.monthNumber,
+      amount: receiptData.amount,
+      paymentMode: receiptData.paymentMode,
+      transactionRef: receiptData.transactionRef,
+      paymentDate: receiptData.paymentDate,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -53,12 +102,14 @@ export default function MemberDashboardPage() {
           <CardContent className="pt-5">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs text-slate-500 font-medium">Next Payment Due</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">10th Sep</p>
+                <p className="text-xs text-slate-500 font-medium">Next Payment Status</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1 capitalize">
+                  {currentDue.paymentStatus === 'successful' ? 'Paid ✓' : 'Pending'}
+                </p>
               </div>
               <Clock className="w-8 h-8 text-amber-500 opacity-80" />
             </div>
-            <p className="text-xs text-amber-600 font-medium mt-3">₹2,500 Due (Ganesh Chits)</p>
+            <p className="text-xs text-amber-600 font-medium mt-3">Month 2 • Due in 10 days</p>
           </CardContent>
         </Card>
 
@@ -76,6 +127,22 @@ export default function MemberDashboardPage() {
         </Card>
       </div>
 
+      {/* Current Payment Due Section */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <CreditCard className="w-5 h-5 text-emerald-600" /> Current Month Payment Portal
+        </h2>
+        <ContributionCard
+          membershipId={currentDue.membershipId}
+          groupName={currentDue.groupName}
+          monthNumber={currentDue.monthNumber}
+          amount={currentDue.amount}
+          paymentStatus={currentDue.paymentStatus}
+          onPaymentSuccess={handlePaymentSuccess}
+          onProcessingChange={setProcessing}
+        />
+      </div>
+
       {/* Active Groups Overview */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -91,11 +158,28 @@ export default function MemberDashboardPage() {
                 <p className="font-semibold text-slate-900 text-sm">Ganesh Traders Chit #1</p>
                 <p className="text-xs text-slate-500">Cycle 4 of 12 • Monthly ₹2,500</p>
               </div>
-              <span className="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-medium">Verified On-Time</span>
+              <Link href="/groups/11111111-1111-1111-1111-111111111111/contributions">
+                <Button size="sm" variant="ghost" className="text-xs font-bold text-emerald-600">
+                  View Portal <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
+              </Link>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      <PaymentProcessingState isOpen={processing} />
+
+      <PaymentReceipt
+        isOpen={receipt.isOpen}
+        groupName={receipt.groupName}
+        monthNumber={receipt.monthNumber}
+        amount={receipt.amount}
+        paymentMode={receipt.paymentMode}
+        transactionRef={receipt.transactionRef}
+        paymentDate={receipt.paymentDate}
+        onClose={() => setReceipt((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

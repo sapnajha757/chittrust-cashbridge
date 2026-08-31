@@ -1,6 +1,6 @@
 -- ============================================================================
 -- CHITTRUST + CASHBRIDGE: FULL SUPABASE DATABASE SCHEMA MIGRATION
--- Combine 001 through 019 for single-shot execution in Supabase SQL Editor
+-- Combine 001 through 020 for single-shot execution in Supabase SQL Editor
 -- ============================================================================
 
 -- 001_extensions.sql
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS agents (
     CONSTRAINT chk_reputation_score_range CHECK (reputation_score >= 0 AND reputation_score <= 100)
 );
 
--- 007_contributions.sql
+-- 007_contributions.sql & 020_contributions_razorpay.sql
 CREATE TABLE IF NOT EXISTS contributions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     membership_id UUID NOT NULL REFERENCES memberships(id) ON DELETE CASCADE,
@@ -122,11 +122,18 @@ CREATE TABLE IF NOT EXISTS contributions (
     payment_date TIMESTAMPTZ DEFAULT NOW(),
     photo_proof_url TEXT NULL,
     transaction_reference TEXT NULL,
+    payment_status TEXT NOT NULL DEFAULT 'pending',
+    razorpay_order_id TEXT NULL,
+    razorpay_payment_id TEXT NULL,
+    razorpay_signature TEXT NULL,
+    failure_reason TEXT NULL,
+    verified_at TIMESTAMPTZ NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
     CONSTRAINT uq_membership_month_contribution UNIQUE (membership_id, month_number),
     CONSTRAINT chk_contribution_month_positive CHECK (month_number > 0),
     CONSTRAINT chk_contribution_amount_positive CHECK (amount > 0),
+    CONSTRAINT chk_contributions_payment_status CHECK (payment_status IN ('pending', 'processing', 'successful', 'failed', 'refunded')),
     CONSTRAINT chk_cash_mode_validation CHECK (
         (mode = 'cash' AND (photo_proof_url IS NOT NULL OR confirmed_via = 'agent')) OR
         (mode = 'upi')
@@ -227,6 +234,19 @@ CREATE TABLE IF NOT EXISTS group_invitations (
     )
 );
 
+-- 020_contributions_razorpay.sql (Webhook idempotency table)
+CREATE TABLE IF NOT EXISTS payment_webhook_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    provider TEXT NOT NULL DEFAULT 'razorpay',
+    event_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    processed BOOLEAN DEFAULT TRUE,
+    received_at TIMESTAMPTZ DEFAULT NOW(),
+    payload_metadata JSONB DEFAULT '{}'::jsonb,
+
+    CONSTRAINT uq_provider_event_id UNIQUE (provider, event_id)
+);
+
 -- 013_indexes.sql
 CREATE INDEX IF NOT EXISTS idx_profiles_phone_number ON profiles(phone_number);
 CREATE INDEX IF NOT EXISTS idx_groups_organizer_id ON groups(organizer_id);
@@ -238,6 +258,9 @@ CREATE INDEX IF NOT EXISTS idx_contributions_membership_id ON contributions(memb
 CREATE INDEX IF NOT EXISTS idx_contributions_month_number ON contributions(month_number);
 CREATE INDEX IF NOT EXISTS idx_contributions_payment_date ON contributions(payment_date);
 CREATE INDEX IF NOT EXISTS idx_contributions_tx_ref ON contributions(transaction_reference) WHERE transaction_reference IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_contributions_razorpay_order ON contributions(razorpay_order_id) WHERE razorpay_order_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_contributions_razorpay_payment ON contributions(razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_contributions_payment_status ON contributions(payment_status);
 CREATE INDEX IF NOT EXISTS idx_payouts_group_id ON payouts(group_id);
 CREATE INDEX IF NOT EXISTS idx_payouts_membership_id ON payouts(membership_id);
 CREATE INDEX IF NOT EXISTS idx_auctions_group_id ON auctions(group_id);
@@ -248,6 +271,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, enti
 CREATE INDEX IF NOT EXISTS idx_group_invitations_group_id ON group_invitations(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_invitations_phone ON group_invitations(phone_number);
 CREATE INDEX IF NOT EXISTS idx_group_invitations_status ON group_invitations(status);
+CREATE INDEX IF NOT EXISTS idx_webhook_events_lookup ON payment_webhook_events(provider, event_id);
 
 -- 014_triggers.sql
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -303,6 +327,7 @@ ALTER TABLE auctions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auction_bids ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_invitations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payment_webhook_events ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Organizers can read member profiles in their groups" ON profiles FOR SELECT USING (
@@ -372,3 +397,5 @@ CREATE POLICY "Organizers can manage invitations for their groups" ON group_invi
 CREATE POLICY "Users can view invitations matching their phone number" ON group_invitations FOR SELECT USING (
     EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.phone_number = group_invitations.phone_number)
 );
+
+CREATE POLICY "Service Role manages webhook events" ON payment_webhook_events FOR ALL USING (true) WITH CHECK (true);
