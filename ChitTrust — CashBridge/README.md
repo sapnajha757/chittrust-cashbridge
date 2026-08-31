@@ -12,15 +12,18 @@ It bridges the gap between **digital-first members** (who prefer UPI/online paym
 
 ---
 
-## 📊 Analytics, Notifications & Risk Intelligence (Phase 10 Completed)
+## 🤖 AI Trust Intelligence, Fraud Detection & Predictive Risk Engine (Phase 12 Completed)
 
-For complete analytics formulas, 7-rule risk engine specs, and resolution audit workflows, see [docs/analytics_risk.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/analytics_risk.md).
+For complete AI architecture, 7-rule hybrid scoring formulas, safety guardrails, and evaluation matrices, see [docs/ai-architecture.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/ai-architecture.md) and [docs/ai-risk-model.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/ai-risk-model.md).
 
-- **Dynamic Platform & Group KPIs**: Calculates Collection Rate (%), On-Time Rate (%), Cash vs Digital percentages, and aggregate Trust Scores dynamically from source-of-truth tables.
-- **Explainable Operational Risk Engine (`RiskEngine`)**: Evaluates 7 operational anomaly rules (`UNUSUAL_VOLUME`, `REPEATED_PATTERN`, `POSSIBLE_DUPLICATE`, `MISSING_PROOF`, `PAYMENT_BEHAVIOR_REVIEW`, `PAYOUT_AMOUNT_MISMATCH`, `STATE_CHANGE_VIOLATION`) with 0-100 Risk Scoring (Low, Medium, High, Critical).
-- **Needs Review Wording & Trust Separation**: Risk flags are titled "Needs Review" and **NEVER automatically modify a member's Trust Score**.
-- **Multi-Channel Notification System**: In-app Notification Center (`/notifications`) with read toggles and automated triggers for payments, auctions, payouts, and risk alerts.
-- **Dedicated Risk & Agent Monitoring Portals**: `/risk` portal for evidence review and resolution audit notes; `/dashboard/agents` portal for agent performance tracking.
+- **Strict 3-Concept Separation**:
+  - **Trust Score**: Behavioral reliability index (Base 100+).
+  - **Risk Score**: Operational anomaly review signal (0–100: Very Low, Low, Moderate, High, Critical).
+  - **AI Confidence**: Statistical model confidence (e.g., 86%).
+- **Human-in-the-Loop Governance**: AI risk flags are titled **"Needs Review"** (never "Fraud"). The AI is **never** the final decision-maker, and AI risk assessments **NEVER automatically modify or degrade a member's Trust Score**.
+- **Ask ChitTrust AI Assistant**: Interactive conversational assistant widget (`AskChitTrustWidget`) answering financial questions in Hindi and English using authorized database context.
+- **Natural Language Score Explanations ("Mera Trust Score kyun badha?")**: Generates clear score summaries based strictly on historical `trust_score_events`.
+- **Dedicated AI Risk Review Portal (`/risk-review`)**: Displays 0–100 Risk Scores, statistical confidence metrics (86%), baseline timeline metrics, and human resolution controls.
 
 ---
 
@@ -30,13 +33,13 @@ For complete analytics formulas, 7-rule risk engine specs, and resolution audit 
 - **Framework**: Next.js 14+ (App Router)
 - **Language**: TypeScript
 - **State & Auth**: Supabase Auth + React Auth Context (`useAuth`)
-- **Payments**: Razorpay Checkout SDK (Test Mode) + Mobile Camera Capture + Voice IVR Simulator
+- **Payments & AI**: Razorpay Checkout SDK (Test Mode) + Mobile Camera Capture + Voice IVR Simulator + Ask ChitTrust AI Widget
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 
 ### Backend & Database
 - **Framework**: FastAPI (Python 3.11+)
-- **Payments SDK**: Razorpay Python SDK (`razorpay`)
+- **AI Intelligence**: Hybrid Rule Engine + Provider Abstraction (Mock & Groq) + Feature Engine
 - **Telephony & Notifications**: Telephony Abstraction (Mock, Twilio, Exotel) + In-App Notifications
 - **Database**: Supabase PostgreSQL + Auth + Storage
 - **Security**: Row Level Security (RLS) & Pgcrypto
@@ -85,6 +88,8 @@ Available at `http://localhost:8000`.
 - [x] **Phase 8: Multilingual Voice IVR & Hindi Trust Score Subsystem** (Feature Phone Telephony, Hindi Voice Prompts, Provider Abstraction, Voice Simulator)
 - [x] **Phase 9: Monthly Auction & Payout Engine** (Bid Auctions, Lucky Draws, Net Payout Calculation, Doorstep Cash Payouts, Audit Trail)
 - [x] **Phase 10: Analytics, Notifications & Risk Intelligence Subsystem** (Platform KPIs, Collection Rates, 7-Rule Risk Engine, Flag Resolutions, In-App Notifications)
+- [x] **Phase 11: Production Hardening, Security, Compliance & Final Polish** (Security Audit, RLS Verification, Rate Limiting, Privacy/Terms Pages, Demo Mode)
+- [x] **Phase 12: AI Trust Intelligence, Fraud Detection & Predictive Risk Engine** (0-100 Risk Scoring, AI Assistant, Hindi Explanations, Human Review Portal, Safety Guardrails)
 
 ---
 

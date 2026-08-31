@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     payouts,
     analytics,
     risk,
+    ai_intelligence,
 )
 
 api_router = APIRouter()
@@ -35,3 +36,4 @@ api_router.include_router(auctions.router, tags=["Auctions"])
 api_router.include_router(payouts.router, tags=["Payouts"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 api_router.include_router(risk.router, prefix="/risk", tags=["Risk & Review"])
+api_router.include_router(ai_intelligence.router, prefix="/ai", tags=["AI Trust Intelligence"])

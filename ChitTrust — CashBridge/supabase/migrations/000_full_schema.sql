@@ -1,6 +1,6 @@
 -- ============================================================================
 -- CHITTRUST + CASHBRIDGE: FULL SUPABASE DATABASE SCHEMA MIGRATION
--- Combine 001 through 025 for single-shot execution in Supabase SQL Editor
+-- Combine 001 through 026 for single-shot execution in Supabase SQL Editor
 -- ============================================================================
 
 -- 001_extensions.sql
@@ -349,25 +349,67 @@ CREATE TABLE IF NOT EXISTS risk_flags (
     CONSTRAINT chk_risk_status CHECK (status IN ('open', 'reviewing', 'resolved', 'dismissed'))
 );
 
+-- 026_ai_trust_intelligence.sql
+CREATE TABLE IF NOT EXISTS ai_risk_assessments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id UUID NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id UUID NULL REFERENCES profiles(id),
+    agent_id UUID NULL REFERENCES profiles(id),
+    entity_type TEXT NOT NULL,
+    entity_id UUID NULL,
+    risk_type TEXT NOT NULL,
+    risk_score INTEGER NOT NULL DEFAULT 0,
+    confidence NUMERIC(3,2) NOT NULL DEFAULT 0.85,
+    status TEXT NOT NULL DEFAULT 'open',
+    evidence_json JSONB DEFAULT '{}'::jsonb,
+    explanation TEXT NOT NULL,
+    recommended_action TEXT NOT NULL,
+    model_name TEXT NOT NULL DEFAULT 'chittrust-hybrid-v1',
+    model_version TEXT NOT NULL DEFAULT '1.0',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    reviewed_at TIMESTAMPTZ NULL,
+    reviewed_by UUID NULL REFERENCES profiles(id),
+    resolution_note TEXT NULL,
+
+    CONSTRAINT chk_ai_risk_score CHECK (risk_score >= 0 AND risk_score <= 100),
+    CONSTRAINT chk_ai_risk_confidence CHECK (confidence >= 0.0 AND confidence <= 1.0),
+    CONSTRAINT chk_ai_risk_status CHECK (status IN ('open', 'reviewing', 'resolved', 'dismissed', 'escalated'))
+);
+
+CREATE TABLE IF NOT EXISTS ai_audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    actor_id UUID NULL REFERENCES profiles(id),
+    action TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id UUID NULL,
+    model TEXT NOT NULL DEFAULT 'chittrust-hybrid-v1',
+    prompt_version TEXT NOT NULL DEFAULT 'v1',
+    result_summary TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ai_usage_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NULL REFERENCES profiles(id),
+    purpose TEXT NOT NULL,
+    model TEXT NOT NULL DEFAULT 'chittrust-hybrid-v1',
+    estimated_tokens INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_profiles_phone_number ON profiles(phone_number);
 CREATE INDEX IF NOT EXISTS idx_groups_organizer_id ON groups(organizer_id);
-CREATE INDEX IF NOT EXISTS idx_groups_status ON groups(status);
 CREATE INDEX IF NOT EXISTS idx_memberships_group_id ON memberships(group_id);
-CREATE INDEX IF NOT EXISTS idx_memberships_user_id ON memberships(user_id);
-CREATE INDEX IF NOT EXISTS idx_memberships_agent_id ON memberships(agent_id);
 CREATE INDEX IF NOT EXISTS idx_contributions_membership_id ON contributions(membership_id);
-CREATE INDEX IF NOT EXISTS idx_contributions_month_number ON contributions(month_number);
-CREATE INDEX IF NOT EXISTS idx_contributions_payment_date ON contributions(payment_date);
-CREATE INDEX IF NOT EXISTS idx_contributions_payment_status ON contributions(payment_status);
 CREATE INDEX IF NOT EXISTS idx_payouts_group_id ON payouts(group_id);
-CREATE INDEX IF NOT EXISTS idx_payouts_status ON payouts(status);
 CREATE INDEX IF NOT EXISTS idx_auctions_group_id ON auctions(group_id);
 CREATE INDEX IF NOT EXISTS idx_trust_scores_user_id ON trust_scores(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_risk_flags_group ON risk_flags(group_id);
-CREATE INDEX IF NOT EXISTS idx_risk_flags_status ON risk_flags(status);
-CREATE INDEX IF NOT EXISTS idx_risk_flags_created ON risk_flags(created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_assessments_group ON ai_risk_assessments(group_id);
+CREATE INDEX IF NOT EXISTS idx_ai_assessments_status ON ai_risk_assessments(status);
+CREATE INDEX IF NOT EXISTS idx_ai_assessments_score ON ai_risk_assessments(risk_score);
 
 -- Triggers
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -400,10 +442,16 @@ ALTER TABLE voice_pins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE voice_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE voice_call_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE risk_flags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_risk_assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_usage_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Organizers can manage own groups" ON groups FOR ALL USING (organizer_id = auth.uid()) WITH CHECK (organizer_id = auth.uid());
 CREATE POLICY "Members can view groups they belong to" ON groups FOR SELECT USING (EXISTS (SELECT 1 FROM memberships m WHERE m.group_id = groups.id AND m.user_id = auth.uid()));
 CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (user_id = auth.uid());
 CREATE POLICY "Organizers can view risk flags for their groups" ON risk_flags FOR SELECT USING (EXISTS (SELECT 1 FROM groups g WHERE g.id = risk_flags.group_id AND g.organizer_id = auth.uid()));
-CREATE POLICY "Organizers can update risk flags for their groups" ON risk_flags FOR UPDATE USING (EXISTS (SELECT 1 FROM groups g WHERE g.id = risk_flags.group_id AND g.organizer_id = auth.uid()));
+CREATE POLICY "Organizers can view AI risk assessments for their groups" ON ai_risk_assessments FOR SELECT USING (EXISTS (SELECT 1 FROM groups g WHERE g.id = ai_risk_assessments.group_id AND g.organizer_id = auth.uid()));
+CREATE POLICY "Organizers can update AI risk assessments for their groups" ON ai_risk_assessments FOR UPDATE USING (EXISTS (SELECT 1 FROM groups g WHERE g.id = ai_risk_assessments.group_id AND g.organizer_id = auth.uid()));
+CREATE POLICY "Users can view own AI audit logs" ON ai_audit_logs FOR SELECT USING (actor_id = auth.uid());
+CREATE POLICY "Users can view own AI usage logs" ON ai_usage_logs FOR SELECT USING (user_id = auth.uid());

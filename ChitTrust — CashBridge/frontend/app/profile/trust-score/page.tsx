@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2, ShieldCheck, HelpCircle } from 'lucide-react';
 import { TrustScoreCard } from '@/components/trust/TrustScoreCard';
 import { TrustScoreBreakdown, BreakdownItem } from '@/components/trust/TrustScoreBreakdown';
 import { TrustScoreTimeline, ScoreEventItem } from '@/components/trust/TrustScoreTimeline';
+import { AskChitTrustWidget } from '@/components/ai/AskChitTrustWidget';
 
 export default function TrustScorePortalPage() {
   const [loading, setLoading] = useState(true);
@@ -122,6 +123,9 @@ export default function TrustScorePortalPage() {
         onTimeCount={scoreData.onTime}
         showLink={false}
       />
+
+      {/* Ask ChitTrust AI Explanation Assistant Widget */}
+      <AskChitTrustWidget />
 
       {/* Mathematical Breakdown */}
       <TrustScoreBreakdown
