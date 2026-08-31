@@ -36,10 +36,15 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_SECRET: str = "placeholder_secret"
     RAZORPAY_WEBHOOK_SECRET: str = "whsec_placeholder"
 
-    # Twilio SMS / Voice (Future Phase)
+    # Voice IVR & Telephony Configuration
+    VOICE_PROVIDER: str = "mock"  # mock | twilio | exotel
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_PHONE_NUMBER: str = ""
+    EXOTEL_API_KEY: str = ""
+    EXOTEL_API_TOKEN: str = ""
+    EXOTEL_PHONE_NUMBER: str = ""
+    VOICE_WEBHOOK_SECRET: str = "voice_whsec_placeholder"
     GROQ_API_KEY: str = ""
 
     model_config = SettingsConfigDict(

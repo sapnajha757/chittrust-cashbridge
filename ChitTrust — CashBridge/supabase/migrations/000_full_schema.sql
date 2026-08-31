@@ -1,6 +1,6 @@
 -- ============================================================================
 -- CHITTRUST + CASHBRIDGE: FULL SUPABASE DATABASE SCHEMA MIGRATION
--- Combine 001 through 022 for single-shot execution in Supabase SQL Editor
+-- Combine 001 through 023 for single-shot execution in Supabase SQL Editor
 -- ============================================================================
 
 -- 001_extensions.sql
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS agents (
     CONSTRAINT chk_reputation_score_range CHECK (reputation_score >= 0 AND reputation_score <= 100)
 );
 
--- 007_contributions.sql & 020_contributions_razorpay.sql & 021_cash_contributions_agent.sql
+-- 007_contributions.sql
 CREATE TABLE IF NOT EXISTS contributions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     membership_id UUID NOT NULL REFERENCES memberships(id) ON DELETE CASCADE,
@@ -160,7 +160,7 @@ CREATE TABLE IF NOT EXISTS payouts (
     CONSTRAINT chk_auction_discount_nonnegative CHECK (auction_discount IS NULL OR auction_discount >= 0)
 );
 
--- 009_trust_scores.sql & 022_trust_score_engine.sql
+-- 009_trust_scores.sql
 CREATE TABLE IF NOT EXISTS trust_scores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS trust_scores (
     CONSTRAINT chk_current_streak_nonnegative CHECK (current_streak >= 0)
 );
 
--- 022_trust_score_engine.sql (Trust score events table)
+-- 022_trust_score_engine.sql
 CREATE TABLE IF NOT EXISTS trust_score_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -199,6 +199,40 @@ CREATE TABLE IF NOT EXISTS trust_score_events (
 
     CONSTRAINT chk_event_type CHECK (event_type IN ('on_time', 'late_within_7_days', 'late_over_7_days', 'missed', 'streak_bonus')),
     CONSTRAINT uq_user_contribution_event UNIQUE (user_id, contribution_id, event_type)
+);
+
+-- 023_voice_ivr_system.sql
+CREATE TABLE IF NOT EXISTS voice_pins (
+    user_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+    pin_hash TEXT NOT NULL,
+    failed_attempts INTEGER DEFAULT 0,
+    locked_until TIMESTAMPTZ NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS voice_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    provider TEXT NOT NULL DEFAULT 'mock',
+    provider_call_id TEXT NULL,
+    caller_phone_hash TEXT NULL,
+    language TEXT NOT NULL DEFAULT 'hi',
+    state TEXT NOT NULL DEFAULT 'LANGUAGE_SELECTION',
+    authenticated_user_id UUID NULL REFERENCES profiles(id),
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    ended_at TIMESTAMPTZ NULL,
+    last_activity_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS voice_call_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    voice_session_id UUID NULL REFERENCES voice_sessions(id) ON DELETE SET NULL,
+    user_id UUID NULL REFERENCES profiles(id),
+    intent TEXT NOT NULL,
+    language TEXT NOT NULL DEFAULT 'hi',
+    status TEXT NOT NULL DEFAULT 'success',
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    ended_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 010_auctions.sql
@@ -312,6 +346,9 @@ CREATE INDEX IF NOT EXISTS idx_group_invitations_phone ON group_invitations(phon
 CREATE INDEX IF NOT EXISTS idx_group_invitations_status ON group_invitations(status);
 CREATE INDEX IF NOT EXISTS idx_webhook_events_lookup ON payment_webhook_events(provider, event_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_voice_sessions_user ON voice_sessions(authenticated_user_id);
+CREATE INDEX IF NOT EXISTS idx_voice_sessions_started ON voice_sessions(started_at);
+CREATE INDEX IF NOT EXISTS idx_voice_logs_user ON voice_call_logs(user_id);
 
 -- 014_triggers.sql
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -355,7 +392,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
--- 015_rls.sql & 019_groups_rls.sql & 022_trust_score_engine.sql
+-- RLS Security Policies
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
@@ -370,6 +407,9 @@ ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_invitations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payment_webhook_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE voice_pins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE voice_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE voice_call_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Organizers can read member profiles in their groups" ON profiles FOR SELECT USING (
@@ -449,3 +489,7 @@ CREATE POLICY "Service Role manages webhook events" ON payment_webhook_events FO
 
 CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (user_id = auth.uid());
 CREATE POLICY "Users can update read status on own notifications" ON notifications FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can manage own voice PIN" ON voice_pins FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Users can view own voice sessions" ON voice_sessions FOR SELECT USING (authenticated_user_id = auth.uid());
+CREATE POLICY "Users can view own voice call logs" ON voice_call_logs FOR SELECT USING (user_id = auth.uid());

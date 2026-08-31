@@ -4,182 +4,148 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wallet, ShieldCheck, Clock, Award, ArrowRight, CreditCard } from 'lucide-react';
+import { ShieldCheck, Flame, ArrowRight, PhoneCall, QrCode, Banknote, HelpCircle, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { ContributionCard } from '@/components/contributions/ContributionCard';
-import { PaymentReceipt } from '@/components/contributions/PaymentReceipt';
-import { PaymentProcessingState } from '@/components/contributions/PaymentProcessingState';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 export default function MemberDashboardPage() {
   const { profile, trustScore } = useAuth();
+  const [currentContribution, setCurrentContribution] = useState<any | null>(null);
 
-  const [processing, setProcessing] = useState(false);
-  const [currentDue, setCurrentDue] = useState<{
-    membershipId: string;
-    groupName: string;
-    monthNumber: number;
-    amount: number;
-    paymentStatus: string;
-  }>({
-    membershipId: '22222222-2222-2222-2222-222222222222',
-    groupName: 'Ganesh Traders Chit #1',
-    monthNumber: 2,
-    amount: 2500.0,
-    paymentStatus: 'pending',
-  });
+  useEffect(() => {
+    async function loadCurrentContribution() {
+      try {
+        const res = await fetch('/api/v1/memberships/33333333-3333-3333-3333-333333333333/current-contribution');
+        if (res.ok) {
+          const data = await res.json();
+          setCurrentContribution(data);
+        }
+      } catch (err) {
+        console.error('Error loading current contribution:', err);
+      }
+    }
 
-  const [receipt, setReceipt] = useState<{
-    isOpen: boolean;
-    groupName: string;
-    monthNumber: number;
-    amount: number;
-    paymentMode: string;
-    transactionRef: string;
-    paymentDate: string;
-  }>({
-    isOpen: false,
-    groupName: '',
-    monthNumber: 1,
-    amount: 2500,
-    paymentMode: 'UPI',
-    transactionRef: '',
-    paymentDate: new Date().toISOString(),
-  });
+    loadCurrentContribution();
+  }, []);
 
-  const currentScore = trustScore?.score ?? 100;
-  const scoreTier = trustScore?.tier ? trustScore.tier.toUpperCase() : 'STARTER';
-
-  const handlePaymentSuccess = (receiptData: any) => {
-    setCurrentDue((prev) => ({ ...prev, paymentStatus: 'successful' }));
-    setReceipt({
-      isOpen: true,
-      groupName: receiptData.groupName,
-      monthNumber: receiptData.monthNumber,
-      amount: receiptData.amount,
-      paymentMode: receiptData.paymentMode,
-      transactionRef: receiptData.transactionRef,
-      paymentDate: receiptData.paymentDate,
-    });
-  };
+  const currentScore = trustScore?.score ?? 125;
+  const isCashMember = profile?.role === 'member' && profile?.name?.includes('Cash');
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+    <div className="max-w-4xl mx-auto space-y-6 py-4">
+      {/* Top Welcome Bar */}
+      <div className="flex justify-between items-center border-b border-slate-200 pb-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold mb-1">
-            <ShieldCheck className="w-3.5 h-3.5" /> Member Portal
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Welcome, {profile?.name || 'Chit Member'}
+          <span className="text-xs text-slate-500 font-semibold">Member Portal</span>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+            Namaste, {profile?.name || 'Chit Member'} 👋
           </h1>
-          <p className="text-sm text-slate-600">Track your active chits, payments, and credit trust score.</p>
         </div>
 
-        <Link href="/profile">
-          <div className="inline-flex items-center px-4 py-2 bg-slate-900 text-white rounded-xl shadow text-xs font-semibold cursor-pointer hover:bg-slate-800 transition-colors">
-            <Award className="w-4 h-4 text-emerald-400 mr-2" />
-            <span>TrustScore: <strong className="text-emerald-400 text-sm ml-1">{currentScore}</strong> ({scoreTier})</span>
-          </div>
-        </Link>
-      </div>
-
-      {/* Summary Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-emerald-950 text-white border-0 shadow-md">
-          <CardContent className="pt-5">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs text-emerald-300 font-medium">My Monthly Contribution</p>
-                <p className="text-2xl font-extrabold mt-1">₹2,500</p>
-              </div>
-              <Wallet className="w-8 h-8 text-emerald-400 opacity-80" />
-            </div>
-            <p className="text-xs text-emerald-200 mt-3">1 Active Chit Group</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Next Payment Status</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1 capitalize">
-                  {currentDue.paymentStatus === 'successful' ? 'Paid ✓' : 'Pending'}
-                </p>
-              </div>
-              <Clock className="w-8 h-8 text-amber-500 opacity-80" />
-            </div>
-            <p className="text-xs text-amber-600 font-medium mt-3">Month 2 • Due in 10 days</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs text-slate-500 font-medium">On-Time Payment Streak</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">{trustScore?.digital_on_time_count ?? 1} Cycles</p>
-              </div>
-              <ShieldCheck className="w-8 h-8 text-blue-600 opacity-80" />
-            </div>
-            <p className="text-xs text-slate-500 mt-3">Equal credit for cash & UPI</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Current Payment Due Section */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-          <CreditCard className="w-5 h-5 text-emerald-600" /> Current Month Payment Portal
-        </h2>
-        <ContributionCard
-          membershipId={currentDue.membershipId}
-          groupName={currentDue.groupName}
-          monthNumber={currentDue.monthNumber}
-          amount={currentDue.amount}
-          paymentStatus={currentDue.paymentStatus}
-          onPaymentSuccess={handlePaymentSuccess}
-          onProcessingChange={setProcessing}
-        />
-      </div>
-
-      {/* Active Groups Overview */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">My Active Savings Groups</CardTitle>
-          <Link href="/groups">
-            <Button size="sm" variant="outline">Browse Groups</Button>
+        <div className="flex items-center space-x-3">
+          <NotificationBell />
+          <Link href="/profile">
+            <Button size="sm" variant="outline" className="text-xs font-bold">
+              Profile
+            </Button>
           </Link>
-        </CardHeader>
-        <CardContent>
-          <div className="divide-y divide-slate-100">
-            <div className="py-3 flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-slate-900 text-sm">Ganesh Traders Chit #1</p>
-                <p className="text-xs text-slate-500">Cycle 4 of 12 • Monthly ₹2,500</p>
-              </div>
-              <Link href="/groups/11111111-1111-1111-1111-111111111111/contributions">
-                <Button size="sm" variant="ghost" className="text-xs font-bold text-emerald-600">
-                  View Portal <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                </Button>
-              </Link>
-            </div>
+        </div>
+      </div>
+
+      {/* Voice Assistant IVR Banner */}
+      <Card className="bg-gradient-to-r from-emerald-900 to-slate-900 text-white border-0 shadow-md">
+        <CardContent className="pt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="space-y-1">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-extrabold uppercase">
+              <PhoneCall className="w-3 h-3" /> Feature Phone Toll-Free Voice Assistant
+            </span>
+            <p className="text-sm font-extrabold">Query Trust Score & Payment Status via Phone Call</p>
+            <p className="text-xs text-slate-300">&quot;Mera score kya hai?&quot; • Natural Hindi Voice IVR</p>
           </div>
+
+          <Link href="/dev/voice-demo">
+            <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-extrabold shrink-0 flex items-center gap-1">
+              Try Voice Simulator <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 
-      <PaymentProcessingState isOpen={processing} />
+      {/* Main Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: Trust Score Card */}
+        <div className="lg:col-span-1 space-y-4">
+          <Card className="bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white border-0 shadow-xl overflow-hidden relative">
+            <CardContent className="pt-6 space-y-4">
+              <div className="flex justify-between items-start">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Trust Score
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl bg-amber-500/20 text-amber-300 text-xs font-bold">
+                  <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" /> 3 Mo Streak
+                </span>
+              </div>
 
-      <PaymentReceipt
-        isOpen={receipt.isOpen}
-        groupName={receipt.groupName}
-        monthNumber={receipt.monthNumber}
-        amount={receipt.amount}
-        paymentMode={receipt.paymentMode}
-        transactionRef={receipt.transactionRef}
-        paymentDate={receipt.paymentDate}
-        onClose={() => setReceipt((prev) => ({ ...prev, isOpen: false }))}
-      />
+              <div className="flex items-baseline space-x-2 py-1">
+                <span className="text-4xl font-extrabold text-white">{currentScore}</span>
+                <span className="text-xs text-slate-400">/ 1000 Max</span>
+              </div>
+
+              <p className="text-xs text-slate-300">
+                Cash and UPI payments receive 100% equal credit weight.
+              </p>
+
+              <Link href="/profile/trust-score">
+                <Button size="sm" variant="outline" className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-bold mt-2">
+                  View Itemized Score Breakdown →
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column: Monthly Contribution Card & Group Details */}
+        <div className="lg:col-span-2 space-y-4">
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold text-slate-900">
+                This Month&apos;s Contribution Status
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex justify-between items-center text-xs">
+                <div>
+                  <p className="font-bold text-slate-900 text-sm">Month 2 Contribution</p>
+                  <p className="text-slate-500 mt-0.5">Ganesh Traders Chit #1</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-extrabold text-slate-900 text-base">₹2,500</p>
+                  <span className="inline-flex items-center text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full mt-0.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Paid ✓
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100 space-y-1">
+                  <span className="text-blue-700 font-bold flex items-center gap-1">
+                    <QrCode className="w-3.5 h-3.5" /> Digital UPI Option
+                  </span>
+                  <p className="text-[11px] text-slate-600">Pay directly via Razorpay UPI checkout.</p>
+                </div>
+
+                <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-100 space-y-1">
+                  <span className="text-amber-800 font-bold flex items-center gap-1">
+                    <Banknote className="w-3.5 h-3.5" /> CashBridge Agent
+                  </span>
+                  <p className="text-[11px] text-slate-600">Give cash to Suresh Patel (Verified Agent).</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
