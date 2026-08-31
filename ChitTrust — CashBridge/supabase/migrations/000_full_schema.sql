@@ -1,6 +1,6 @@
 -- ============================================================================
 -- CHITTRUST + CASHBRIDGE: FULL SUPABASE DATABASE SCHEMA MIGRATION
--- Combine 001 through 020 for single-shot execution in Supabase SQL Editor
+-- Combine 001 through 022 for single-shot execution in Supabase SQL Editor
 -- ============================================================================
 
 -- 001_extensions.sql
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS agents (
     CONSTRAINT chk_reputation_score_range CHECK (reputation_score >= 0 AND reputation_score <= 100)
 );
 
--- 007_contributions.sql & 020_contributions_razorpay.sql
+-- 007_contributions.sql & 020_contributions_razorpay.sql & 021_cash_contributions_agent.sql
 CREATE TABLE IF NOT EXISTS contributions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     membership_id UUID NOT NULL REFERENCES memberships(id) ON DELETE CASCADE,
@@ -128,6 +128,7 @@ CREATE TABLE IF NOT EXISTS contributions (
     razorpay_signature TEXT NULL,
     failure_reason TEXT NULL,
     verified_at TIMESTAMPTZ NULL,
+    recorded_by_agent_id UUID NULL REFERENCES profiles(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
     CONSTRAINT uq_membership_month_contribution UNIQUE (membership_id, month_number),
@@ -159,15 +160,20 @@ CREATE TABLE IF NOT EXISTS payouts (
     CONSTRAINT chk_auction_discount_nonnegative CHECK (auction_discount IS NULL OR auction_discount >= 0)
 );
 
--- 009_trust_scores.sql
+-- 009_trust_scores.sql & 022_trust_score_engine.sql
 CREATE TABLE IF NOT EXISTS trust_scores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     score INTEGER NOT NULL DEFAULT 100,
+    base_score INTEGER DEFAULT 100,
     total_on_time INTEGER DEFAULT 0,
     total_late INTEGER DEFAULT 0,
+    total_late_within_7_days INTEGER DEFAULT 0,
+    total_late_over_7_days INTEGER DEFAULT 0,
     total_missed INTEGER DEFAULT 0,
     current_streak INTEGER DEFAULT 0,
+    total_bonus_points INTEGER DEFAULT 0,
+    version INTEGER DEFAULT 1,
     last_updated TIMESTAMPTZ DEFAULT NOW(),
 
     CONSTRAINT chk_score_nonnegative CHECK (score >= 0),
@@ -175,6 +181,24 @@ CREATE TABLE IF NOT EXISTS trust_scores (
     CONSTRAINT chk_total_late_nonnegative CHECK (total_late >= 0),
     CONSTRAINT chk_total_missed_nonnegative CHECK (total_missed >= 0),
     CONSTRAINT chk_current_streak_nonnegative CHECK (current_streak >= 0)
+);
+
+-- 022_trust_score_engine.sql (Trust score events table)
+CREATE TABLE IF NOT EXISTS trust_score_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    contribution_id UUID NULL REFERENCES contributions(id) ON DELETE SET NULL,
+    event_type TEXT NOT NULL,
+    points INTEGER NOT NULL,
+    streak_before INTEGER DEFAULT 0,
+    streak_after INTEGER DEFAULT 0,
+    score_before INTEGER DEFAULT 100,
+    score_after INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+
+    CONSTRAINT chk_event_type CHECK (event_type IN ('on_time', 'late_within_7_days', 'late_over_7_days', 'missed', 'streak_bonus')),
+    CONSTRAINT uq_user_contribution_event UNIQUE (user_id, contribution_id, event_type)
 );
 
 -- 010_auctions.sql
@@ -234,7 +258,7 @@ CREATE TABLE IF NOT EXISTS group_invitations (
     )
 );
 
--- 020_contributions_razorpay.sql (Webhook idempotency table)
+-- 020_contributions_razorpay.sql
 CREATE TABLE IF NOT EXISTS payment_webhook_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     provider TEXT NOT NULL DEFAULT 'razorpay',
@@ -245,6 +269,18 @@ CREATE TABLE IF NOT EXISTS payment_webhook_events (
     payload_metadata JSONB DEFAULT '{}'::jsonb,
 
     CONSTRAINT uq_provider_event_id UNIQUE (provider, event_id)
+);
+
+-- 021_cash_contributions_agent.sql
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    type TEXT NOT NULL DEFAULT 'info',
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    related_entity_id UUID NULL,
+    read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 013_indexes.sql
@@ -261,17 +297,21 @@ CREATE INDEX IF NOT EXISTS idx_contributions_tx_ref ON contributions(transaction
 CREATE INDEX IF NOT EXISTS idx_contributions_razorpay_order ON contributions(razorpay_order_id) WHERE razorpay_order_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_contributions_razorpay_payment ON contributions(razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_contributions_payment_status ON contributions(payment_status);
+CREATE INDEX IF NOT EXISTS idx_contributions_agent ON contributions(recorded_by_agent_id) WHERE recorded_by_agent_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_payouts_group_id ON payouts(group_id);
 CREATE INDEX IF NOT EXISTS idx_payouts_membership_id ON payouts(membership_id);
 CREATE INDEX IF NOT EXISTS idx_auctions_group_id ON auctions(group_id);
 CREATE INDEX IF NOT EXISTS idx_auction_bids_auction_id ON auction_bids(auction_id);
 CREATE INDEX IF NOT EXISTS idx_trust_scores_user_id ON trust_scores(user_id);
+CREATE INDEX IF NOT EXISTS idx_trust_events_user_id ON trust_score_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_trust_events_created_at ON trust_score_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id ON audit_logs(actor_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_group_invitations_group_id ON group_invitations(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_invitations_phone ON group_invitations(phone_number);
 CREATE INDEX IF NOT EXISTS idx_group_invitations_status ON group_invitations(status);
 CREATE INDEX IF NOT EXISTS idx_webhook_events_lookup ON payment_webhook_events(provider, event_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 
 -- 014_triggers.sql
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -304,8 +344,8 @@ BEGIN
     VALUES (NEW.id, default_phone, default_name, 'member'::user_type)
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO public.trust_scores (user_id, score)
-    VALUES (NEW.id, 100)
+    INSERT INTO public.trust_scores (user_id, score, base_score)
+    VALUES (NEW.id, 100, 100)
     ON CONFLICT (user_id) DO NOTHING;
 
     RETURN NEW;
@@ -315,7 +355,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
--- 015_rls.sql & 019_groups_rls.sql
+-- 015_rls.sql & 019_groups_rls.sql & 022_trust_score_engine.sql
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
@@ -323,11 +363,13 @@ ALTER TABLE agents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contributions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trust_scores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trust_score_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auctions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auction_bids ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_invitations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payment_webhook_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Organizers can read member profiles in their groups" ON profiles FOR SELECT USING (
@@ -375,6 +417,11 @@ CREATE POLICY "Organizers can view trust scores of members in their groups" ON t
     EXISTS (SELECT 1 FROM groups g JOIN memberships m ON m.group_id = g.id WHERE g.organizer_id = auth.uid() AND m.user_id = trust_scores.user_id)
 );
 
+CREATE POLICY "Users can read own trust score events" ON trust_score_events FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Organizers can view trust score events of members in their groups" ON trust_score_events FOR SELECT USING (
+    EXISTS (SELECT 1 FROM groups g JOIN memberships m ON m.group_id = g.id WHERE g.organizer_id = auth.uid() AND m.user_id = trust_score_events.user_id)
+);
+
 CREATE POLICY "Group members and organizers can view group auctions" ON auctions FOR SELECT USING (
     EXISTS (SELECT 1 FROM memberships m WHERE m.group_id = auctions.group_id AND m.user_id = auth.uid())
     OR EXISTS (SELECT 1 FROM groups g WHERE g.id = auctions.group_id AND g.organizer_id = auth.uid())
@@ -399,3 +446,6 @@ CREATE POLICY "Users can view invitations matching their phone number" ON group_
 );
 
 CREATE POLICY "Service Role manages webhook events" ON payment_webhook_events FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Users can update read status on own notifications" ON notifications FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());

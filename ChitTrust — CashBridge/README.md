@@ -20,14 +20,14 @@ It bridges the gap between **digital-first members** (who prefer UPI/online paym
 
 ---
 
-## 💳 Digital Contributions & Razorpay Test Integration (Phase 5 Completed)
+## 📈 Explainable Trust Score Engine (Phase 7 Completed)
 
-For complete payment flow diagrams, HMAC verification algorithms, and webhook idempotency specs, see [docs/payments.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/payments.md).
+For complete mathematical formulas, streak bonus rules, and scoring test matrices, see [docs/trust_score.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/trust_score.md).
 
-- **Server-Side Order Creation (`/api/v1/contributions/upi/order`)**: Calculates amount in integer paise from `group.contribution_per_month` (client amounts strictly ignored).
-- **Cryptographic Signature Verification (`/api/v1/contributions/upi/verify`)**: Validates Razorpay callback parameters using constant-time HMAC-SHA256 comparison before marking contribution `successful`.
-- **Webhook Processing (`/api/v1/payments/razorpay/webhook`)**: Verified event updates and idempotency ledger (`payment_webhook_events`).
-- **Receipts & Ledgers**: Payment receipts with transaction references (`PaymentReceipt`) and organizer collection ledgers (`ContributionLedger`).
+- **Equal Credit Weight**: CashBridge cash payments (+5) and Razorpay UPI payments (+5) receive identical point credit weight.
+- **Deterministic Engine (`TrustScoreService`)**: Reconstructs score snapshots from chronological contribution history (`Base: 100`, `On-time: +5`, `Late ≤7d: -5`, `Late >7d: -10`, `Missed: -20`, `3-Month Streak: +10`).
+- **Event Audit Ledger (`trust_score_events`)**: Records every point transaction and streak bonus with unique idempotency constraints.
+- **Portal & Breakdown UI (`/profile/trust-score`)**: Itemized mathematical point breakdown and chronological score timeline.
 
 ---
 
@@ -86,8 +86,8 @@ Available at `http://localhost:8000`.
 - [x] **Phase 3: Authentication, Onboarding & Role-Based Access** (Phone OTP, Profile Setup, Middleware, Dashboards)
 - [x] **Phase 4: Group Creation & Membership Management** (Group Setup, Digital/Cash Invites, Agent Assignment, Exited State)
 - [x] **Phase 5: Digital Contributions & Razorpay Test Payments** (Razorpay Test Mode, HMAC-SHA256 Verification, Webhook Idempotency, Receipts)
-- [ ] **Phase 6: CashBridge Doorstep Cash Verification Workflows**
-- [ ] **Phase 7: TrustScore Calculation Engine & Auction Bidding Engine**
+- [x] **Phase 6: CashBridge Doorstep Cash Verification Workflows** (Mobile-first Agent App, Photo Proof Capture, Private Storage, Notifications)
+- [x] **Phase 7: Explainable TrustScore Calculation Engine** (Equal Credit Weight, Deterministic Points, Audit Ledger, Timeline UI)
 - [ ] **Phase 8: Groq Multilingual Voice AI Assistance for Low-Literacy Users**
 
 ---
