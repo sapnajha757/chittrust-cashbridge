@@ -12,15 +12,15 @@ It bridges the gap between **digital-first members** (who prefer UPI/online paym
 
 ---
 
-## 🏆 Monthly Auction & Payout Engine (Phase 9 Completed)
+## 📊 Analytics, Notifications & Risk Intelligence (Phase 10 Completed)
 
-For complete auction semantics, discount formulas, and cash payout handover specs, see [docs/auctions_payouts.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/auctions_payouts.md).
+For complete analytics formulas, 7-rule risk engine specs, and resolution audit workflows, see [docs/analytics_risk.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/analytics_risk.md).
 
-- **Bid Auctions & Lucky Draws**: Highest valid discount wins (`Net Payout = Total Pot - Winning Discount`). Supports server-side lucky draw selection.
-- **Fixed-Point Monetary Precision**: Uses Python `Decimal` arithmetic for exact financial calculations.
-- **CashBridge Doorstep Payout Handover**: Organizers assign CashBridge Agents to deliver cash payouts for cash winners, confirmed with mandatory photo proof.
-- **Dedicated Monthly Auction Portal (`/groups/[id]/auction`)**: Visual timeline (`AuctionTimeline`), pot statistics (`AuctionCard`), member bidding form (`BidForm`), and agent handover modal (`PayoutConfirmModal`).
-- **Voice IVR Integration**: Voice Assistant queries auction winners and payout statuses in natural Hindi (*"Is mahine ka auction complete ho gaya hai. Payout amount ₹8,500 hai."*).
+- **Dynamic Platform & Group KPIs**: Calculates Collection Rate (%), On-Time Rate (%), Cash vs Digital percentages, and aggregate Trust Scores dynamically from source-of-truth tables.
+- **Explainable Operational Risk Engine (`RiskEngine`)**: Evaluates 7 operational anomaly rules (`UNUSUAL_VOLUME`, `REPEATED_PATTERN`, `POSSIBLE_DUPLICATE`, `MISSING_PROOF`, `PAYMENT_BEHAVIOR_REVIEW`, `PAYOUT_AMOUNT_MISMATCH`, `STATE_CHANGE_VIOLATION`) with 0-100 Risk Scoring (Low, Medium, High, Critical).
+- **Needs Review Wording & Trust Separation**: Risk flags are titled "Needs Review" and **NEVER automatically modify a member's Trust Score**.
+- **Multi-Channel Notification System**: In-app Notification Center (`/notifications`) with read toggles and automated triggers for payments, auctions, payouts, and risk alerts.
+- **Dedicated Risk & Agent Monitoring Portals**: `/risk` portal for evidence review and resolution audit notes; `/dashboard/agents` portal for agent performance tracking.
 
 ---
 
@@ -37,7 +37,7 @@ For complete auction semantics, discount formulas, and cash payout handover spec
 ### Backend & Database
 - **Framework**: FastAPI (Python 3.11+)
 - **Payments SDK**: Razorpay Python SDK (`razorpay`)
-- **Telephony**: Provider Abstraction (Mock, Twilio, Exotel)
+- **Telephony & Notifications**: Telephony Abstraction (Mock, Twilio, Exotel) + In-App Notifications
 - **Database**: Supabase PostgreSQL + Auth + Storage
 - **Security**: Row Level Security (RLS) & Pgcrypto
 
@@ -84,6 +84,7 @@ Available at `http://localhost:8000`.
 - [x] **Phase 7: Explainable TrustScore Calculation Engine** (Equal Credit Weight, Deterministic Points, Audit Ledger, Timeline UI)
 - [x] **Phase 8: Multilingual Voice IVR & Hindi Trust Score Subsystem** (Feature Phone Telephony, Hindi Voice Prompts, Provider Abstraction, Voice Simulator)
 - [x] **Phase 9: Monthly Auction & Payout Engine** (Bid Auctions, Lucky Draws, Net Payout Calculation, Doorstep Cash Payouts, Audit Trail)
+- [x] **Phase 10: Analytics, Notifications & Risk Intelligence Subsystem** (Platform KPIs, Collection Rates, 7-Rule Risk Engine, Flag Resolutions, In-App Notifications)
 
 ---
 
