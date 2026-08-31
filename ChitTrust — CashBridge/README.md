@@ -12,37 +12,33 @@ It bridges the gap between **digital-first members** (who prefer UPI/online paym
 
 ---
 
-## 🤖 AI Trust Intelligence, Fraud Detection & Predictive Risk Engine (Phase 12 Completed)
+## 🚀 Key Features & Highlights
 
-For complete AI architecture, 7-rule hybrid scoring formulas, safety guardrails, and evaluation matrices, see [docs/ai-architecture.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/ai-architecture.md) and [docs/ai-risk-model.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/ai-risk-model.md).
-
-- **Strict 3-Concept Separation**:
-  - **Trust Score**: Behavioral reliability index (Base 100+).
-  - **Risk Score**: Operational anomaly review signal (0–100: Very Low, Low, Moderate, High, Critical).
-  - **AI Confidence**: Statistical model confidence (e.g., 86%).
-- **Human-in-the-Loop Governance**: AI risk flags are titled **"Needs Review"** (never "Fraud"). The AI is **never** the final decision-maker, and AI risk assessments **NEVER automatically modify or degrade a member's Trust Score**.
-- **Ask ChitTrust AI Assistant**: Interactive conversational assistant widget (`AskChitTrustWidget`) answering financial questions in Hindi and English using authorized database context.
-- **Natural Language Score Explanations ("Mera Trust Score kyun badha?")**: Generates clear score summaries based strictly on historical `trust_score_events`.
-- **Dedicated AI Risk Review Portal (`/risk-review`)**: Displays 0–100 Risk Scores, statistical confidence metrics (86%), baseline timeline metrics, and human resolution controls.
+- **Mixed Digital + Doorstep Cash Ledger**: Seamlessly integrates Razorpay UPI Test Mode payments and CashBridge Agent doorstep cash collection with mandatory photo proof.
+- **Equal Credit Weight Trust Score Engine**: Math-based Trust Score (Base 100+) giving identical credit weight (+5 points) to cash and digital payments.
+- **Monthly Auction & Payout Engine**: Bid auctions (highest valid discount wins) and lucky draws with exact fixed-point `Decimal` payout calculations.
+- **Feature Phone Multilingual Voice IVR**: Feature phone simulator (`/dev/voice-demo`) supporting natural Hindi voice queries (*"Mera Trust Score kya hai?"*).
+- **AI Trust Intelligence & Risk Engine**: 7-rule hybrid operational risk evaluator with 0–100 Risk Scores, 86% AI confidence index, and human-in-the-loop review portal (`/risk-review`).
+- **Ask ChitTrust Conversational AI Widget**: Interactive chat assistant answering financial questions in Hindi/English using authorized database context.
+- **Production Hardened & Audited**: 27 PostgreSQL migration files, 21 RLS security policies, security headers, rate limiting, and zero committed secrets.
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Tech Stack & Integrations
 
 ### Frontend
 - **Framework**: Next.js 14+ (App Router)
 - **Language**: TypeScript
 - **State & Auth**: Supabase Auth + React Auth Context (`useAuth`)
-- **Payments & AI**: Razorpay Checkout SDK (Test Mode) + Mobile Camera Capture + Voice IVR Simulator + Ask ChitTrust AI Widget
-- **Styling**: Tailwind CSS
-- **Icons**: Lucide React
+- **Payments & AI**: Razorpay Checkout SDK (Test Mode) + Mobile Camera Capture + Voice Simulator + Ask ChitTrust AI Widget
+- **Styling**: Tailwind CSS & Lucide React
 
 ### Backend & Database
 - **Framework**: FastAPI (Python 3.11+)
-- **AI Intelligence**: Hybrid Rule Engine + Provider Abstraction (Mock & Groq) + Feature Engine
-- **Telephony & Notifications**: Telephony Abstraction (Mock, Twilio, Exotel) + In-App Notifications
-- **Database**: Supabase PostgreSQL + Auth + Storage
-- **Security**: Row Level Security (RLS) & Pgcrypto
+- **Database**: Supabase PostgreSQL (21 RLS-Enabled Tables)
+- **AI Intelligence**: Hybrid Rule Engine + Groq LLM API Integration (`gsk_...`)
+- **Telephony & Voice**: Telephony Abstraction (Twilio Telephony & Mock Provider)
+- **Security**: Row Level Security (RLS), Pgcrypto, Security Headers, SlowAPI Rate-Limiting
 
 ---
 
@@ -72,11 +68,22 @@ cd backend
 # Run FastAPI backend server
 python run.py
 ```
-Available at `http://localhost:8000`.
+Available at `http://localhost:8000` (API Docs at `http://localhost:8000/api/v1/docs`).
 
 ---
 
-## 📈 Development Roadmap & Completed Phases
+## 📋 Environment Configuration Template (`.env.example`)
+
+Refer to [.env.example](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/.env.example) for template variable placeholders.
+
+- **Supabase Project**: Configured for project `ssishktinopnepbydsgh`.
+- **Razorpay Test Mode**: Active Key ID `rzp_test_TWRGglD9NiPvbo`.
+- **Groq LLM**: Active LLM Key (`gsk_...`).
+- **Twilio Voice IVR**: Active Account SID `AC9bdd32a...`.
+
+---
+
+## 📈 Complete 13-Phase Roadmap
 
 - [x] **Phase 1: Project Foundation** (Tech Stack, Modular Layout, Routing, Health Check, Types, Documentation)
 - [x] **Phase 2: Database Schemas, RLS Security, Triggers & Storage** (10 Tables, 9 Enums, Triggers, RLS, Storage Bucket)
@@ -90,10 +97,11 @@ Available at `http://localhost:8000`.
 - [x] **Phase 10: Analytics, Notifications & Risk Intelligence Subsystem** (Platform KPIs, Collection Rates, 7-Rule Risk Engine, Flag Resolutions, In-App Notifications)
 - [x] **Phase 11: Production Hardening, Security, Compliance & Final Polish** (Security Audit, RLS Verification, Rate Limiting, Privacy/Terms Pages, Demo Mode)
 - [x] **Phase 12: AI Trust Intelligence, Fraud Detection & Predictive Risk Engine** (0-100 Risk Scoring, AI Assistant, Hindi Explanations, Human Review Portal, Safety Guardrails)
+- [x] **Phase 13: Production Hardening, UX Polish, Demo Mode & Final Launch Readiness** (Landing Page Hero Demo Card, Role Dashboards, One-Click Demo Reset, 4-Minute Hackathon Demo Script)
 
 ---
 
 ## ⚖️ Legal & Compliance Disclaimer
 
 > [!IMPORTANT]
-> **Hackathon MVP Notice**: Real-world deployment requires formal compliance under India's **Chit Funds Act, 1982** and applicable state amendments.
+> **Hackathon MVP Notice**: ChitTrust + CashBridge is a technology platform prototype for transparent community savings group management. Actual chit fund or committee operations must comply with applicable Indian laws, regulations, and registration requirements under the **Chit Funds Act, 1982**.
