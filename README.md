@@ -1,113 +1,96 @@
-# Queue Cure '26 🩺
+# ChitTrust + CashBridge 🪙🤝
 
-A real-time token queue system for Indian clinics — built for **Queue Cure
-'26** on [Wooble](https://wooble.org/).
+> **Financial Inclusion Platform for Mixed Digital + Cash-Based Community Committees (Chit Funds / SHGs) in India**
 
-76% of India's 1.5 million clinics still run on paper token slips and
-shouting across the waiting room. This replaces that with two screens that
-stay in sync the instant a token is called — no refresh, no polling, no
-guessing.
+---
 
-## Screens
+## 📌 Project Overview
 
-**Receptionist Desk** (`/reception`)
-Add a patient and issue them a token, call the next token, set the average
-consultation time. Shows the full queue with live status (waiting / serving
-/ done).
+**ChitTrust + CashBridge** is a hackathon-ready financial inclusion platform built specifically for informal and semi-formal community savings groups (Chit Funds, ROSCAs, Self-Help Groups) across urban and rural India.
 
-**Waiting Room Display** (`/patient`)
-A big "Now Serving" board for the TV/tablet in the waiting room, plus a
-token lookup so a patient can check how many people are ahead of them and
-their estimated wait.
+It bridges the gap between **digital-first members** (who prefer UPI/online payments) and **cash-based micro-savers** (who lack digital literacy or banking access), creating a **unified Trust Score** that treats digital and verified cash contributions with equal credit weight.
 
-## How the live sync works
+---
 
-One Socket.io server holds the entire queue state in memory. Whenever the
-receptionist adds a patient, calls next, or changes the average time, the
-server broadcasts the full updated state to **every connected screen** via
-a single `queueUpdate` event. Neither screen ever polls or refreshes — it's
-just told the moment something changes.
+## 🚀 Key Features & Highlights
 
-```mermaid
-sequenceDiagram
-    participant R as Receptionist
-    participant S as Socket.io Server
-    participant P as Waiting Room
+- **Mixed Digital + Doorstep Cash Ledger**: Seamlessly integrates Razorpay UPI Test Mode payments and CashBridge Agent doorstep cash collection with mandatory photo proof.
+- **Equal Credit Weight Trust Score Engine**: Math-based Trust Score (Base 100+) giving identical credit weight (+5 points) to cash and digital payments.
+- **Monthly Auction & Payout Engine**: Bid auctions (highest valid discount wins) and lucky draws with exact fixed-point `Decimal` payout calculations.
+- **Feature Phone Multilingual Voice IVR**: Feature phone simulator (`/dev/voice-demo`) supporting natural Hindi voice queries (*"Mera Trust Score kya hai?"*).
+- **AI Trust Intelligence & Risk Engine**: 7-rule hybrid operational risk evaluator with 0–100 Risk Scores, 86% AI confidence index, and human-in-the-loop review portal (`/risk-review`).
+- **Ask ChitTrust Conversational AI Widget**: Interactive chat assistant answering financial questions in Hindi/English using authorized database context.
+- **Production Hardened & Audited**: 27 PostgreSQL migration files, 21 RLS security policies, security headers, rate limiting, and zero committed secrets.
 
-    R->>S: addPatient { name, phone }
-    S->>R: queueUpdate (broadcast)
-    S->>P: queueUpdate (broadcast)
+---
 
-    R->>S: callNext
-    S->>R: queueUpdate (broadcast)
-    S->>P: queueUpdate (broadcast)
-```
+## 🛠️ Tech Stack & Integrations
 
-A full visual diagram with every event's payload shape lives at
-[`docs/socket-event-diagram.svg`](./docs/socket-event-diagram.svg).
+### Frontend
+- **Framework**: Next.js 14+ (App Router)
+- **Language**: TypeScript
+- **State & Auth**: Supabase Auth + React Auth Context (`useAuth`)
+- **Payments & AI**: Razorpay Checkout SDK (Test Mode) + Mobile Camera Capture + Voice Simulator + Ask ChitTrust AI Widget
+- **Styling**: Tailwind CSS & Lucide React
 
-The reasoning behind the architecture, design, and scope decisions is in
-[`docs/thought-process.md`](./docs/thought-process.md).
+### Backend & Database
+- **Framework**: FastAPI (Python 3.11+)
+- **Database**: Supabase PostgreSQL (21 RLS-Enabled Tables)
+- **AI Intelligence**: Hybrid Rule Engine + Groq LLM API Integration (`gsk_...`)
+- **Telephony & Voice**: Telephony Abstraction (Twilio Telephony & Mock Provider)
+- **Security**: Row Level Security (RLS), Pgcrypto, Security Headers, SlowAPI Rate-Limiting
 
-## Tech stack
+---
 
-- **Client**: React + Vite + Tailwind CSS + React Router + socket.io-client
-- **Server**: Node.js + Express + Socket.io
-- **State**: in-memory on the server (no database — see thought process doc
-  for why, and what would change that)
+## ⚡ Quick Start & App Setup Instructions
 
-## Running it locally
+### 1. Frontend Setup
 
-You need two terminals — one for the server, one for the client.
-
-**Terminal 1 — server**
 ```bash
-cd server
-npm install
-npm start
-```
-Server runs on `http://localhost:4000`.
+cd "ChitTrust — CashBridge/frontend"
 
-**Terminal 2 — client**
-```bash
-cd client
+# Install dependencies
 npm install
+
+# Run development server
 npm run dev
 ```
-Client runs on `http://localhost:5173`. Open `/reception` in one tab and
-`/patient` in another (or on a second device on the same network) to see
-the live sync.
+Available at `http://localhost:3000`.
 
-## Deploying it
+### 2. Backend Setup
 
-- **Server**: any Node host works (Render, Railway, Fly.io). Free tiers are
-  fine for a demo.
-- **Client**: Vercel or Netlify. Set the environment variable
-  `VITE_SERVER_URL` to your deployed server's URL before building, so the
-  client connects to the right backend instead of `localhost`.
-- Once deployed, tighten the `cors.origin` in `server/index.js` from `"*"`
-  to your actual client URL.
+```bash
+cd "ChitTrust — CashBridge/backend"
 
-## Project structure
+# Activate virtual environment (Windows PowerShell)
+.venv\Scripts\Activate.ps1
 
+# Run FastAPI backend server
+python run.py
 ```
-queue-cure-26/
-├── server/              # Express + Socket.io backend
-│   └── index.js         # queue state + all socket events
-├── client/              # React + Vite frontend
-│   └── src/
-│       ├── pages/
-│       │   ├── Receptionist.jsx
-│       │   └── PatientView.jsx
-│       └── socket.js    # shared socket.io-client instance
-└── docs/
-    ├── socket-event-diagram.svg
-    └── thought-process.md
-```
+Available at `http://localhost:8000` (API Docs at `http://localhost:8000/api/v1/docs`).
 
-## Submission checklist (Queue Cure '26)
+---
 
-- [ ] Working prototype link or demo video
-- [x] GitHub repository with README (this one)
-- [x] Socket event diagram (`docs/socket-event-diagram.svg`)
-- [x] Thought process sheet (`docs/thought-process.md`)
+## 📈 Complete 13-Phase Roadmap
+
+- [x] **Phase 1: Project Foundation** (Tech Stack, Modular Layout, Routing, Health Check, Types, Documentation)
+- [x] **Phase 2: Database Schemas, RLS Security, Triggers & Storage** (10 Tables, 9 Enums, Triggers, RLS, Storage Bucket)
+- [x] **Phase 3: Authentication, Onboarding & Role-Based Access** (Phone OTP, Profile Setup, Middleware, Dashboards)
+- [x] **Phase 4: Group Creation & Membership Management** (Group Setup, Digital/Cash Invites, Agent Assignment, Exited State)
+- [x] **Phase 5: Digital Contributions & Razorpay Test Payments** (Razorpay Test Mode, HMAC-SHA256 Verification, Webhook Idempotency, Receipts)
+- [x] **Phase 6: CashBridge Doorstep Cash Verification Workflows** (Mobile-first Agent App, Photo Proof Capture, Private Storage, Notifications)
+- [x] **Phase 7: Explainable TrustScore Calculation Engine** (Equal Credit Weight, Deterministic Points, Audit Ledger, Timeline UI)
+- [x] **Phase 8: Multilingual Voice IVR & Hindi Trust Score Subsystem** (Feature Phone Telephony, Hindi Voice Prompts, Provider Abstraction, Voice Simulator)
+- [x] **Phase 9: Monthly Auction & Payout Engine** (Bid Auctions, Lucky Draws, Net Payout Calculation, Doorstep Cash Payouts, Audit Trail)
+- [x] **Phase 10: Analytics, Notifications & Risk Intelligence Subsystem** (Platform KPIs, Collection Rates, 7-Rule Risk Engine, Flag Resolutions, In-App Notifications)
+- [x] **Phase 11: Production Hardening, Security, Compliance & Final Polish** (Security Audit, RLS Verification, Rate Limiting, Privacy/Terms Pages, Demo Mode)
+- [x] **Phase 12: AI Trust Intelligence, Fraud Detection & Predictive Risk Engine** (0-100 Risk Scoring, AI Assistant, Hindi Explanations, Human Review Portal, Safety Guardrails)
+- [x] **Phase 13: Production Hardening, UX Polish, Demo Mode & Final Launch Readiness** (Landing Page Hero Demo Card, Role Dashboards, One-Click Demo Reset, 4-Minute Hackathon Demo Script)
+
+---
+
+## ⚖️ Legal & Compliance Disclaimer
+
+> [!IMPORTANT]
+> **Hackathon MVP Notice**: ChitTrust + CashBridge is a technology platform prototype for transparent community savings group management. Actual chit fund or committee operations must comply with applicable Indian laws, regulations, and registration requirements under the **Chit Funds Act, 1982**.
