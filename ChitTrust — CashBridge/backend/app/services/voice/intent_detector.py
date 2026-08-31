@@ -1,5 +1,5 @@
 import re
-from typing import str
+from typing import Optional, Dict, Any
 
 class IntentDetector:
     @staticmethod
