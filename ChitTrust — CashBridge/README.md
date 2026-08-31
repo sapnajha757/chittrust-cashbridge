@@ -29,68 +29,14 @@ It bridges the gap between **digital-first members** (who prefer UPI/online paym
 
 ---
 
-## 🏗️ System Architecture
+## 🔑 Auth & Onboarding Architecture (Phase 3 Completed)
 
-```mermaid
-flowchart TD
-    subgraph Users["User Roles"]
-        ORG["Organizer"]
-        DM["Digital Member"]
-        CM["Cash Member"]
-        CBA["CashBridge Agent"]
-    end
+For complete authentication flow diagrams and role security rules, see [docs/authentication.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/authentication.md).
 
-    subgraph Frontend["Frontend Layer (Next.js 14 App Router)"]
-        UI["Tailwind CSS + Lucide UI"]
-        RP["Routes: /, /login, /dashboard, /groups, /agent, /profile"]
-    end
-
-    subgraph Backend["Backend Layer (FastAPI)"]
-        API["API v1 (/api/v1)"]
-        AUTH_M["Auth Module"]
-        GRP_M["Groups & Auctions Module"]
-        CON_M["Contributions Module"]
-        TRU_M["TrustScore Engine"]
-    end
-
-    subgraph Data["Supabase Database & Storage Layer"]
-        SUPA_AUTH["Supabase Auth"]
-        SUPA_DB["PostgreSQL (10 Tables + RLS)"]
-        SUPA_STOR["Private Storage Bucket (cash-payment-proofs)"]
-    end
-
-    DM -->|UPI / Online Payment| UI
-    CM -->|Hand Cash + Collect Receipt| CBA
-    CBA -->|Record Cash + Upload Photo Proof| UI
-    ORG -->|Manage Groups & Auctions| UI
-
-    UI --> API
-    API --> SUPA_AUTH
-    API --> SUPA_DB
-    CBA -->|Upload Photo Proof| SUPA_STOR
-```
-
----
-
-## 🗄️ Database Architecture & RLS Security (Phase 2 Completed)
-
-For complete table definitions, foreign keys, and RLS matrices, see [docs/database.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/database.md).
-
-### Core Tables Summary
-- `profiles`: User profiles mirroring `auth.users` with domain roles (`organizer`, `member`, `agent`, `admin`).
-- `groups`: Community chit funds with total pool, duration, and monthly payment constraints.
-- `memberships`: Associates users with groups. Cash members MUST have an assigned `agent_id`.
-- `agents`: Verification profiles and reputation metrics for doorstep CashBridge agents.
-- `contributions`: Monthly payment receipts with strict mode validation (Cash requires photo proof/agent confirmation).
-- `payouts`: Monthly auction prize disbursements.
-- `trust_scores`: Unified credit rating starting at 100 with on-time metrics.
-- `auctions` & `auction_bids`: Monthly bidding rounds and bidding history.
-- `audit_logs`: Immutable audit trail for financial traceability.
-
-### RLS & Security Highlights
-- **100% RLS Coverage**: All 10 tables have Row Level Security enabled.
-- **Private Storage**: `cash-payment-proofs` bucket is private; only verified agents can upload, and group members/organizers can view receipt images.
-- **Automatic User Provisioning**: PostgreSQL trigger `handle_new_user()` automatically creates user profiles and initializes trust scores upon Supabase Auth registration.
+- **Phone OTP Verification**: Indian mobile number input with strict `+91XXXXXXXXXX` normalization.
+- **Role-Based Onboarding**: Seamless profile creation supporting Organizers, Members, and CashBridge Agents.
+- **Privilege Safeguards**: Self-creation of `admin` is blocked; CashBridge Agent selection creates a pending application (`verified_status = 'pending'`).
+- **Route Protection**: Next.js middleware guards private routes (`/dashboard`, `/profile`, `/groups`, `/agent`).
 
 ---
 
@@ -99,31 +45,14 @@ For complete table definitions, foreign keys, and RLS matrices, see [docs/databa
 ### Frontend
 - **Framework**: Next.js 14+ (App Router)
 - **Language**: TypeScript
+- **State & Auth**: Supabase Auth + React Auth Context (`useAuth`)
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 
 ### Backend & Database
 - **Framework**: FastAPI (Python 3.11+)
-- **Validation**: Pydantic v2 & Pydantic Settings
 - **Database**: Supabase PostgreSQL + Auth + Storage
 - **Security**: Row Level Security (RLS) & Pgcrypto
-
----
-
-## ⚡ Migration & Database Setup Instructions
-
-### 1. Execute SQL Migrations in Supabase
-Copy the contents of [supabase/migrations/000_full_schema.sql](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/supabase/migrations/000_full_schema.sql) and run it in the **Supabase SQL Editor**.
-
-Alternatively, execute individual numbered migration scripts in sequence:
-`001_extensions.sql` ➔ `002_enums.sql` ➔ `003_profiles.sql` ➔ ... ➔ `017_seed.sql`.
-
-### 2. Validate Schema Integrity
-Run the backend schema validator script:
-```bash
-cd backend
-.venv\Scripts\python scripts\validate_schema.py
-```
 
 ---
 
@@ -140,6 +69,7 @@ npm install
 # Run development server
 npm run dev
 ```
+Available at `http://localhost:3000`.
 
 ### 2. Backend Setup
 
@@ -152,9 +82,7 @@ cd backend
 # Run FastAPI backend server
 python run.py
 ```
-
-The API will be available at `http://localhost:8000`.
-- Health Check: `GET http://localhost:8000/api/v1/health`
+Available at `http://localhost:8000`.
 
 ---
 
@@ -162,14 +90,15 @@ The API will be available at `http://localhost:8000`.
 
 - [x] **Phase 1: Project Foundation** (Tech Stack, Modular Layout, Routing, Health Check, Types, Documentation)
 - [x] **Phase 2: Database Schemas, RLS Security, Triggers & Storage** (10 Tables, 9 Enums, Triggers, RLS, Storage Bucket)
-- [ ] **Phase 3: Dual Contribution & CashBridge Agent Verification Workflows**
-- [ ] **Phase 4: TrustScore Calculation Engine & Auction Bidding Engine**
-- [ ] **Phase 5: Razorpay UPI & Twilio SMS Alerts Integration**
-- [ ] **Phase 6: Groq Multilingual Voice AI Assistance for Low-Literacy Users**
+- [x] **Phase 3: Authentication, Onboarding & Role-Based Access** (Phone OTP, Profile Setup, Middleware, Dashboards)
+- [ ] **Phase 4: Dual Contribution & CashBridge Agent Verification Workflows**
+- [ ] **Phase 5: TrustScore Calculation Engine & Auction Bidding Engine**
+- [ ] **Phase 6: Razorpay UPI & Twilio SMS Alerts Integration**
+- [ ] **Phase 7: Groq Multilingual Voice AI Assistance for Low-Literacy Users**
 
 ---
 
 ## ⚖️ Legal & Compliance Disclaimer
 
 > [!IMPORTANT]
-> **Hackathon MVP Notice**: This database schema is designed for hackathon demonstration and prototype execution. Real-world deployment requires formal compliance under India's **Chit Funds Act, 1982** and applicable state amendments.
+> **Hackathon MVP Notice**: Real-world deployment requires formal compliance under India's **Chit Funds Act, 1982** and applicable state amendments.
