@@ -8,6 +8,8 @@ export type ContributionStatus = 'pending' | 'verified' | 'failed';
 
 export type GroupStatus = 'active' | 'closed' | 'paused';
 
+export type AuctionType = 'bid' | 'lucky_draw';
+
 export type AuctionStatus = 'upcoming' | 'bidding' | 'completed' | 'cancelled';
 
 export type AgentVerificationStatus = 'pending' | 'verified' | 'blocked';
@@ -34,6 +36,7 @@ export interface Group {
   total_members: number;
   cycle_months: number;
   current_cycle: number;
+  auction_type: AuctionType;
   status: GroupStatus;
   organizer_id: string;
   created_at: string;

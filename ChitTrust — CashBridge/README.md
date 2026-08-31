@@ -20,23 +20,14 @@ It bridges the gap between **digital-first members** (who prefer UPI/online paym
 
 ---
 
-## 💡 Solution
+## 👥 Groups & Membership Architecture (Phase 4 Completed)
 
-- **Dual-Mode Contribution System**: Digital members pay via UPI/Razorpay; Cash members pay doorstep **CashBridge Agents**.
-- **Photo-Verified Doorstep Receipts**: Agents collect cash, snap photo proof of the transaction + physical receipt, and instantly digitize the payment.
-- **Equal-Weight TrustScore**: System rewards on-time cash payments identically to digital payments, producing a verifiable community trust rating.
-- **Multi-Role Portal**: Dedicated dashboards for **Organizers**, **Digital Members**, **Cash Members**, and **CashBridge Agents**.
+For complete group lifecycle diagrams and authorization matrix, see [docs/groups.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/groups.md).
 
----
-
-## 🔑 Auth & Onboarding Architecture (Phase 3 Completed)
-
-For complete authentication flow diagrams and role security rules, see [docs/authentication.md](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/docs/authentication.md).
-
-- **Phone OTP Verification**: Indian mobile number input with strict `+91XXXXXXXXXX` normalization.
-- **Role-Based Onboarding**: Seamless profile creation supporting Organizers, Members, and CashBridge Agents.
-- **Privilege Safeguards**: Self-creation of `admin` is blocked; CashBridge Agent selection creates a pending application (`verified_status = 'pending'`).
-- **Route Protection**: Next.js middleware guards private routes (`/dashboard`, `/profile`, `/groups`, `/agent`).
+- **Group Creation (`/groups/create`)**: Organizers set pool amount, duration, monthly contribution, and auction allocation type (`bid` vs `lucky_draw`).
+- **Dual Member Onboarding (`/groups/[id]/members/add`)**: Supports inviting Digital members (UPI) and Cash members (assigning verified doorstep CashBridge Agents).
+- **Non-Registered Invitations (`group_invitations`)**: Allows organizers to invite users by phone number before they sign up.
+- **Exited Member Preservation**: Member exit sets `status = 'exited'` instead of deleting records, preserving historical audit logs.
 
 ---
 
@@ -91,10 +82,11 @@ Available at `http://localhost:8000`.
 - [x] **Phase 1: Project Foundation** (Tech Stack, Modular Layout, Routing, Health Check, Types, Documentation)
 - [x] **Phase 2: Database Schemas, RLS Security, Triggers & Storage** (10 Tables, 9 Enums, Triggers, RLS, Storage Bucket)
 - [x] **Phase 3: Authentication, Onboarding & Role-Based Access** (Phone OTP, Profile Setup, Middleware, Dashboards)
-- [ ] **Phase 4: Dual Contribution & CashBridge Agent Verification Workflows**
-- [ ] **Phase 5: TrustScore Calculation Engine & Auction Bidding Engine**
-- [ ] **Phase 6: Razorpay UPI & Twilio SMS Alerts Integration**
-- [ ] **Phase 7: Groq Multilingual Voice AI Assistance for Low-Literacy Users**
+- [x] **Phase 4: Group Creation & Membership Management** (Group Setup, Digital/Cash Invites, Agent Assignment, Exited State)
+- [ ] **Phase 5: Dual Contribution & CashBridge Agent Verification Workflows**
+- [ ] **Phase 6: TrustScore Calculation Engine & Auction Bidding Engine**
+- [ ] **Phase 7: Razorpay UPI & Twilio SMS Alerts Integration**
+- [ ] **Phase 8: Groq Multilingual Voice AI Assistance for Low-Literacy Users**
 
 ---
 

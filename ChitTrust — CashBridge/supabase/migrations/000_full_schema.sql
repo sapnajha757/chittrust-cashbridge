@@ -1,6 +1,6 @@
 -- ============================================================================
 -- CHITTRUST + CASHBRIDGE: FULL SUPABASE DATABASE SCHEMA MIGRATION
--- Combine 001 through 017 for single-shot execution in Supabase SQL Editor
+-- Combine 001 through 019 for single-shot execution in Supabase SQL Editor
 -- ============================================================================
 
 -- 001_extensions.sql
@@ -207,6 +207,26 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 018_group_invitations.sql
+CREATE TABLE IF NOT EXISTS group_invitations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    phone_number TEXT NOT NULL,
+    name TEXT NOT NULL,
+    member_type member_type NOT NULL,
+    agent_id UUID NULL REFERENCES profiles(id),
+    invited_by UUID NOT NULL REFERENCES profiles(id),
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days'),
+
+    CONSTRAINT chk_invitation_status CHECK (status IN ('pending', 'accepted', 'rejected', 'expired')),
+    CONSTRAINT chk_cash_invitation_requires_agent CHECK (
+        (member_type = 'cash' AND agent_id IS NOT NULL) OR
+        (member_type = 'digital')
+    )
+);
+
 -- 013_indexes.sql
 CREATE INDEX IF NOT EXISTS idx_profiles_phone_number ON profiles(phone_number);
 CREATE INDEX IF NOT EXISTS idx_groups_organizer_id ON groups(organizer_id);
@@ -225,6 +245,9 @@ CREATE INDEX IF NOT EXISTS idx_auction_bids_auction_id ON auction_bids(auction_i
 CREATE INDEX IF NOT EXISTS idx_trust_scores_user_id ON trust_scores(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id ON audit_logs(actor_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_group_invitations_group_id ON group_invitations(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_invitations_phone ON group_invitations(phone_number);
+CREATE INDEX IF NOT EXISTS idx_group_invitations_status ON group_invitations(status);
 
 -- 014_triggers.sql
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -268,7 +291,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
--- 015_rls.sql
+-- 015_rls.sql & 019_groups_rls.sql
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
@@ -279,6 +302,7 @@ ALTER TABLE trust_scores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auctions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auction_bids ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_invitations ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Organizers can read member profiles in their groups" ON profiles FOR SELECT USING (
@@ -339,3 +363,12 @@ CREATE POLICY "Group members can place auction bids" ON auction_bids FOR INSERT 
 
 CREATE POLICY "Users can read own audit logs" ON audit_logs FOR SELECT USING (actor_id = auth.uid());
 CREATE POLICY "Append-only audit log insertion" ON audit_logs FOR INSERT WITH CHECK (actor_id = auth.uid() OR actor_id IS NULL);
+
+CREATE POLICY "Organizers can manage invitations for their groups" ON group_invitations FOR ALL USING (
+    EXISTS (SELECT 1 FROM groups g WHERE g.id = group_invitations.group_id AND g.organizer_id = auth.uid())
+) WITH CHECK (
+    EXISTS (SELECT 1 FROM groups g WHERE g.id = group_invitations.group_id AND g.organizer_id = auth.uid())
+);
+CREATE POLICY "Users can view invitations matching their phone number" ON group_invitations FOR SELECT USING (
+    EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.phone_number = group_invitations.phone_number)
+);

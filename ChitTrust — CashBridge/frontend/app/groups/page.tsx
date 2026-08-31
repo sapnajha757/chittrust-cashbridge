@@ -1,93 +1,127 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Users, Calendar, Shield, Plus, ArrowRight } from 'lucide-react';
+'use client';
 
-export default function GroupsPage() {
-  const groups = [
-    {
-      id: '1',
-      name: 'Ganesh Traders Chit #1',
-      monthly: 2500,
-      members: 12,
-      cycle: 4,
-      totalCycle: 12,
-      status: 'Active',
-      organizer: 'Ramesh Kumar',
-    },
-    {
-      id: '2',
-      name: 'Lakshmi Mahila Savings',
-      monthly: 2500,
-      members: 10,
-      cycle: 2,
-      totalCycle: 10,
-      status: 'Active',
-      organizer: 'Sunita Devi',
-    },
-    {
-      id: '3',
-      name: 'Vanguard Micro Small Business Chit',
-      monthly: 5000,
-      members: 20,
-      cycle: 1,
-      totalCycle: 20,
-      status: 'Upcoming',
-      organizer: 'Suresh Patel',
-    },
-  ];
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Plus, Search, ShieldCheck } from 'lucide-react';
+import { GroupCard } from '@/components/groups/GroupCard';
+import { EmptyState } from '@/components/groups/EmptyState';
+import { useAuth } from '@/hooks/use-auth';
+import { Group } from '@/types';
+
+export default function GroupsDirectoryPage() {
+  const { profile } = useAuth();
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const isOrganizer = profile?.role === 'organizer';
+
+  useEffect(() => {
+    async function loadGroups() {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/v1/groups');
+        if (res.ok) {
+          const data = await res.json();
+          setGroups(data);
+        } else {
+          // Demo fallback
+          setGroups([
+            {
+              id: '11111111-1111-1111-1111-111111111111',
+              name: 'Ganesh Traders Community Chit #1',
+              total_amount: 30000.0,
+              duration_months: 12,
+              monthly_contribution: 2500.0,
+              cycle_months: 12,
+              current_cycle: 4,
+              total_members: 12,
+              status: 'active',
+              auction_type: 'bid' as any,
+              organizer_id: '00000000-0000-0000-0000-000000000001',
+              created_at: new Date().toISOString(),
+            },
+          ]);
+        }
+      } catch (err) {
+        console.error('Error fetching groups:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadGroups();
+  }, []);
+
+  const filteredGroups = groups.filter((g) =>
+    g.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Community Chit Groups</h1>
-          <p className="text-sm text-slate-600">Browse verified chit committees or create a new group.</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            {isOrganizer ? 'Managed Chit Groups' : 'My Savings Groups'}
+          </h1>
+          <p className="text-sm text-slate-600">
+            {isOrganizer
+              ? 'Organize community chits, invite members, and conduct monthly auctions.'
+              : 'View your active community chit fund memberships.'}
+          </p>
         </div>
-        <Button className="flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Create New Group
-        </Button>
+
+        {isOrganizer && (
+          <Link href="/groups/create">
+            <Button className="flex items-center gap-2 font-bold shadow">
+              <Plus className="w-4 h-4" /> Create Group
+            </Button>
+          </Link>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {groups.map((group) => (
-          <Card key={group.id} className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-base font-bold text-slate-900">{group.name}</CardTitle>
-                <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
-                  {group.status}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-1">Organizer: {group.organizer}</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-lg border border-slate-100">
-                <div>
-                  <span className="text-slate-500 block">Monthly Contribution</span>
-                  <span className="font-bold text-slate-900 text-sm">₹{group.monthly.toLocaleString('en-IN')}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Total Pool</span>
-                  <span className="font-bold text-emerald-600 text-sm">₹{(group.monthly * group.members).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="pt-2">
-                  <span className="text-slate-500 block">Members</span>
-                  <span className="font-medium text-slate-800">{group.members} participants</span>
-                </div>
-                <div className="pt-2">
-                  <span className="text-slate-500 block">Current Cycle</span>
-                  <span className="font-medium text-slate-800">{group.cycle} / {group.totalCycle}</span>
-                </div>
-              </div>
-
-              <Button variant="outline" className="w-full text-xs">
-                View Group Details <ArrowRight className="w-3.5 h-3.5 ml-1" />
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Search Bar */}
+      <div className="relative max-w-md w-full">
+        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+        <input
+          type="text"
+          placeholder="Search groups by name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white shadow-sm"
+        />
       </div>
+
+      {/* Group Directory List */}
+      {loading ? (
+        <div className="text-center py-12 text-slate-500 text-sm">Loading community groups...</div>
+      ) : filteredGroups.length === 0 ? (
+        <EmptyState
+          icon="folder"
+          title="No Community Savings Groups Found"
+          description={
+            isOrganizer
+              ? "You haven't created any community chit groups yet. Click below to start your first group."
+              : 'You are not currently enrolled in any community chit groups.'
+          }
+          actionText={isOrganizer ? '+ Create First Group' : undefined}
+          onAction={isOrganizer ? () => (window.location.href = '/groups/create') : undefined}
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredGroups.map((group) => (
+            <GroupCard
+              key={group.id}
+              group={group}
+              userRole={profile?.role || 'member'}
+              memberType="cash"
+              agentName="Ramesh Kumar"
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
