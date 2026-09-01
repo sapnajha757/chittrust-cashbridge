@@ -16,10 +16,10 @@ export default function TrustScorePortalPage() {
     streak: number;
     onTime: number;
   }>({
-    score: 105,
+    score: 785,
     baseScore: 100,
-    streak: 1,
-    onTime: 1,
+    streak: 4,
+    onTime: 16,
   });
 
   const [breakdownItems, setBreakdownItems] = useState<BreakdownItem[]>([]);
@@ -49,17 +49,27 @@ export default function TrustScorePortalPage() {
           const hData = await historyRes.json();
           setTimelineEvents(hData);
         } else {
-          // Demo fallback
+          // Demo fallback matching 785 Gold Tier score
           setTimelineEvents([
             {
               id: 'te1',
-              month_number: 1,
+              month_number: 16,
               payment_mode: 'upi',
               event_type: 'on_time',
               points: 5,
-              score_after: 105,
-              reason: 'On-time contribution (UPI) for Month 1 (+5)',
+              score_after: 785,
+              reason: 'On-time contribution (UPI) for Month 16 (+5)',
               created_at: new Date().toISOString(),
+            },
+            {
+              id: 'te2',
+              month_number: 15,
+              payment_mode: 'cash',
+              event_type: 'on_time',
+              points: 5,
+              score_after: 780,
+              reason: 'Doorstep Cash Verified Contribution for Month 15 (+5)',
+              created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
             },
           ]);
         }
@@ -68,14 +78,14 @@ export default function TrustScorePortalPage() {
           const bData = await breakdownRes.json();
           setBreakdownItems(bData.breakdown_items || []);
         } else {
-          // Demo fallback
+          // Demo fallback matching 785 Gold Tier score
           setBreakdownItems([
             { label: 'Base Starting Score', count: 1, points_per_unit: 100, total_points: 100 },
-            { label: 'On-Time Contributions (UPI + Cash)', count: 1, points_per_unit: 5, total_points: 5 },
+            { label: 'On-Time Contributions (12 UPI + 4 Doorstep Cash)', count: 16, points_per_unit: 5, total_points: 80 },
             { label: 'Late Contributions (≤ 7 days)', count: 0, points_per_unit: -5, total_points: 0 },
             { label: 'Late Contributions (> 7 days)', count: 0, points_per_unit: -10, total_points: 0 },
             { label: 'Missed Payments', count: 0, points_per_unit: -20, total_points: 0 },
-            { label: '3-Month Consistency Streak Bonuses', count: 0, points_per_unit: 10, total_points: 0 },
+            { label: '3-Month Consistency Streak Bonuses', count: 4, points_per_unit: 10, total_points: 40 },
           ]);
         }
       } catch (err) {

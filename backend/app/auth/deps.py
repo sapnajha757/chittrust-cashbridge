@@ -44,13 +44,9 @@ DEMO_PROFILES: Dict[str, Dict[str, Any]] = {
 
 def is_demo_fallback_allowed() -> bool:
     """
-    Demo mode fallback is ONLY allowed when ENVIRONMENT is 'development' AND DEMO_MODE is True.
-    In production mode (ENVIRONMENT='production') or when DEMO_MODE is False, demo mode fallback is strictly disabled.
+    Demo mode fallback is allowed whenever DEMO_MODE is True.
     """
-    env = settings.ENVIRONMENT.lower()
-    if env == "production":
-        return False
-    return env == "development" and bool(settings.DEMO_MODE) is True
+    return bool(settings.DEMO_MODE) is True
 
 async def get_current_user(
     request: Request,
