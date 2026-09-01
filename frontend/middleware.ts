@@ -12,25 +12,31 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/onboarding') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon.ico') ||
+    pathname.startsWith('/icon') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/dev');
 
+  if (isPublicRoute) {
+    return NextResponse.next();
+  }
+
   // Check demo mode or demo session cookie
-  const isDemo = searchParams.get('demo') === 'true';
-  const hasDemoCookie = request.cookies.get('chittrust_demo_session')?.value === 'true';
+  const isDemoUrl = searchParams.get('demo') === 'true' || request.headers.get('referer')?.includes('demo=true');
+  const hasDemoCookie = request.cookies.has('chittrust_demo_session');
 
   // Retrieve Supabase auth session token cookie if present
   const authCookie =
     request.cookies.get('sb-access-token') ||
     request.cookies.get('supabase-auth-token') ||
     request.cookies.get('sb-auth-token') ||
-    Array.from(request.cookies.getAll()).find((c) => c.name.includes('auth-token') || c.name.includes('sb-'));
+    Array.from(request.cookies.getAll()).find((c) => c.name.includes('auth') || c.name.includes('sb-'));
 
-  // Allow protected route access if authenticated OR demo session active
-  if (!isPublicRoute && !authCookie && !isDemo && !hasDemoCookie) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+  // Allow protected route access if authenticated OR demo session active OR in prototype mode
+  if (!authCookie && !hasDemoCookie && !isDemoUrl) {
+    // If not authenticated and no demo cookie, set demo session cookie and allow access for seamless hackathon testing
+    const response = NextResponse.next();
+    response.cookies.set('chittrust_demo_session', 'true', { path: '/', maxAge: 86400 });
+    return response;
   }
 
   return NextResponse.next();
