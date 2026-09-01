@@ -32,5 +32,8 @@ COMMENT ON TABLE notifications IS 'In-app notification records for member cash r
 -- Enable RLS on notifications
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own notifications" ON notifications;
 CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can update read status on own notifications" ON notifications;
 CREATE POLICY "Users can update read status on own notifications" ON notifications FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());

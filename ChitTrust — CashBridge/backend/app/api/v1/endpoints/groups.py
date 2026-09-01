@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 import uuid
 
@@ -9,192 +9,120 @@ from app.schemas.group import (
     GroupResponse,
     MemberAddRequest,
     MembershipResponse,
-    InvitationResponse,
 )
 from app.services.group_service import group_service
+from app.auth.deps import get_current_user, require_organizer
 from app.core.exceptions import APIException
 
 router = APIRouter()
 
-# Demo storage for local hackathon testing
-DEMO_GROUPS = [
-    {
-        "id": "11111111-1111-1111-1111-111111111111",
-        "name": "Ganesh Traders Community Chit #1",
-        "total_amount": 30000.0,
-        "duration_months": 12,
-        "contribution_per_month": 2500.0,
-        "auction_type": "bid",
-        "organizer_id": "00000000-0000-0000-0000-000000000001",
-        "status": "active",
-        "member_count": 2,
-        "created_at": datetime.utcnow().isoformat(),
-        "updated_at": datetime.utcnow().isoformat(),
-    }
-]
-
-DEMO_MEMBERSHIPS = [
-    {
-        "id": "22222222-2222-2222-2222-222222222222",
-        "group_id": "11111111-1111-1111-1111-111111111111",
-        "user_id": "00000000-0000-0000-0000-000000000003",
-        "member_name": "Demo Digital Member Priya",
-        "phone_number": "+919900000003",
-        "member_type": "digital",
-        "agent_id": None,
-        "agent_name": None,
-        "status": "active",
-        "joined_at": datetime.utcnow().isoformat(),
-    },
-    {
-        "id": "33333333-3333-3333-3333-333333333333",
-        "group_id": "11111111-1111-1111-1111-111111111111",
-        "user_id": "00000000-0000-0000-0000-000000000004",
-        "member_name": "Demo Cash Member Anil",
-        "phone_number": "+919900000004",
-        "member_type": "cash",
-        "agent_id": "00000000-0000-0000-0000-000000000002",
-        "agent_name": "Demo CashBridge Agent Suresh",
-        "status": "active",
-        "joined_at": datetime.utcnow().isoformat(),
-    },
-]
-
-DEMO_INVITATIONS = []
-
-
 @router.post("", response_model=GroupResponse, status_code=status.HTTP_201_CREATED)
-async def create_group(data: GroupCreate):
+async def create_group(
+    data: GroupCreate,
+    current_user: Dict[str, Any] = Depends(require_organizer)
+):
     """
-    Creates a new community chit fund group. (Organizers only)
+    Creates a new community chit fund group (Organizers only).
+    Identity is derived strictly from JWT.
     """
-    organizer_id = "00000000-0000-0000-0000-000000000001"  # Derived from auth session in production
-    new_group = group_service.create_group(organizer_id, data)
-    DEMO_GROUPS.append(new_group)
-    return new_group
-
+    organizer_id = current_user["id"]
+    return group_service.create_group(organizer_id, data)
 
 @router.get("", response_model=List[GroupResponse])
-async def list_groups(role: Optional[str] = None):
+async def list_groups(
+    role: Optional[str] = None,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """
-    Lists groups relevant to the current user role.
+    Lists groups relevant to the current authenticated user.
     """
-    return DEMO_GROUPS
-
+    user_id = current_user.get("id")
+    user_role = current_user.get("user_type") or role
+    organizer_id = user_id if user_role == "organizer" else None
+    return group_service.list_groups(organizer_id=organizer_id)
 
 @router.get("/{group_id}", response_model=GroupResponse)
-async def get_group_details(group_id: str):
+async def get_group_details(
+    group_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """
     Retrieves details for a specific chit group.
     """
-    group = next((g for g in DEMO_GROUPS if g["id"] == group_id), None)
-    if not group:
-        raise APIException("Group not found.", status_code=status.HTTP_404_NOT_FOUND)
-    return group
-
+    return group_service.get_group_by_id(group_id)
 
 @router.patch("/{group_id}", response_model=GroupResponse)
-async def update_group(group_id: str, data: GroupUpdate):
+async def update_group(
+    group_id: str,
+    data: GroupUpdate,
+    current_user: Dict[str, Any] = Depends(require_organizer)
+):
     """
     Updates configuration for an active group.
     """
-    group = next((g for g in DEMO_GROUPS if g["id"] == group_id), None)
-    if not group:
-        raise APIException("Group not found.", status_code=status.HTTP_404_NOT_FOUND)
-
-    if data.name:
-        group["name"] = data.name.strip()
-    if data.auction_type:
-        group["auction_type"] = data.auction_type
-    if data.status:
-        group["status"] = data.status
-    group["updated_at"] = datetime.utcnow().isoformat()
-    return group
-
+    organizer_id = current_user["id"]
+    user_role = current_user.get("user_type", "organizer")
+    return group_service.update_group(group_id, data, organizer_id, user_role=user_role)
 
 @router.post("/{group_id}/pause", response_model=GroupResponse)
-async def pause_group(group_id: str):
+async def pause_group(
+    group_id: str,
+    current_user: Dict[str, Any] = Depends(require_organizer)
+):
     """
     Pauses activity for a group.
     """
-    group = next((g for g in DEMO_GROUPS if g["id"] == group_id), None)
-    if not group:
-        raise APIException("Group not found.", status_code=status.HTTP_404_NOT_FOUND)
-    group["status"] = "paused"
-    group["updated_at"] = datetime.utcnow().isoformat()
-    return group
-
+    organizer_id = current_user["id"]
+    user_role = current_user.get("user_type", "organizer")
+    return group_service.update_group(group_id, GroupUpdate(status="paused"), organizer_id, user_role=user_role)
 
 @router.post("/{group_id}/close", response_model=GroupResponse)
-async def close_group(group_id: str):
+async def close_group(
+    group_id: str,
+    current_user: Dict[str, Any] = Depends(require_organizer)
+):
     """
     Closes a group permanently.
     """
-    group = next((g for g in DEMO_GROUPS if g["id"] == group_id), None)
-    if not group:
-        raise APIException("Group not found.", status_code=status.HTTP_404_NOT_FOUND)
-    group["status"] = "closed"
-    group["updated_at"] = datetime.utcnow().isoformat()
-    return group
-
+    organizer_id = current_user["id"]
+    user_role = current_user.get("user_type", "organizer")
+    return group_service.update_group(group_id, GroupUpdate(status="closed"), organizer_id, user_role=user_role)
 
 @router.get("/{group_id}/members", response_model=List[MembershipResponse])
-async def list_group_members(group_id: str):
+async def list_group_members(
+    group_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """
-    Lists all members and pending invitations for a specific group.
+    Lists all members for a specific group.
     """
-    return [m for m in DEMO_MEMBERSHIPS if m["group_id"] == group_id]
-
+    return group_service.list_members(group_id)
 
 @router.post("/{group_id}/members", status_code=status.HTTP_201_CREATED)
-async def add_member(group_id: str, req: MemberAddRequest):
+async def add_member(
+    group_id: str,
+    req: MemberAddRequest,
+    current_user: Dict[str, Any] = Depends(require_organizer)
+):
     """
-    Adds a digital/cash member to a group or creates an invitation.
+    Adds a digital/cash member to a group.
     """
-    group = next((g for g in DEMO_GROUPS if g["id"] == group_id), None)
-    if not group:
-        raise APIException("Group not found.", status_code=status.HTTP_404_NOT_FOUND)
-
-    norm_phone = group_service.normalize_phone(req.phone_number)
-
-    # Check for duplicate active membership
-    existing_mem = next(
-        (m for m in DEMO_MEMBERSHIPS if m["group_id"] == group_id and m["phone_number"] == norm_phone and m["status"] == "active"),
-        None,
-    )
-    if existing_mem:
-        raise APIException("This user is already an active member of this group.")
-
-    # Create new membership
-    new_mem_id = str(uuid.uuid4())
-    new_mem = {
-        "id": new_mem_id,
-        "group_id": group_id,
-        "user_id": str(uuid.uuid4()),
-        "member_name": req.name.strip(),
-        "phone_number": norm_phone,
-        "member_type": req.member_type,
-        "agent_id": req.agent_id if req.member_type == "cash" else None,
-        "agent_name": "Demo CashBridge Agent Suresh" if req.member_type == "cash" else None,
-        "status": "active",
-        "joined_at": datetime.utcnow().isoformat(),
-    }
-    DEMO_MEMBERSHIPS.append(new_mem)
-    group["member_count"] += 1
-
+    organizer_id = current_user["id"]
+    user_role = current_user.get("user_type", "organizer")
+    new_mem = group_service.add_member(group_id, req, organizer_id, user_role=user_role)
     return {
         "message": "Member added successfully.",
         "membership": new_mem,
     }
 
-
 @router.post("/memberships/{membership_id}/exit")
-async def exit_membership(membership_id: str):
+async def exit_membership(
+    membership_id: str,
+    current_user: Dict[str, Any] = Depends(require_organizer)
+):
     """
     Exits a member from a group while preserving historical financial records.
     """
-    mem = next((m for m in DEMO_MEMBERSHIPS if m["id"] == membership_id), None)
-    if not mem:
-        raise APIException("Membership record not found.", status_code=status.HTTP_404_NOT_FOUND)
-    mem["status"] = "exited"
-    return group_service.exit_member(membership_id, "organizer_id")
+    organizer_id = current_user["id"]
+    user_role = current_user.get("user_type", "organizer")
+    return group_service.exit_member(membership_id, organizer_id, user_role=user_role)

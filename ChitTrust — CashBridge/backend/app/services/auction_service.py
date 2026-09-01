@@ -1,10 +1,12 @@
 import uuid
+import secrets
 import logging
 from decimal import Decimal
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from app.core.exceptions import APIException
 from app.services.notification_service import notification_service
+from app.db.supabase import get_supabase_client
 
 logger = logging.getLogger("chittrust.auctions")
 
@@ -62,25 +64,44 @@ DEMO_PAYOUTS_DB: List[Dict[str, Any]] = []
 class AuctionService:
     @classmethod
     def get_auction(cls, auction_id: str) -> Dict[str, Any]:
+        client = get_supabase_client()
+        if client:
+            try:
+                res = client.table("auctions").select("*").eq("id", auction_id).execute()
+                if res.data and len(res.data) > 0:
+                    return res.data[0]
+            except Exception as err:
+                logger.warning(f"DB get_auction error: {err}")
+
         auction = next((a for a in DEMO_AUCTIONS_DB if a["id"] == auction_id), None)
         if not auction:
             raise APIException("Auction session not found.", status_code=404)
         return auction
 
     @classmethod
-    def open_auction(cls, group_id: str, month_number: int, organizer_id: str) -> Dict[str, Any]:
+    def open_auction(cls, group_id: str, month_number: int, organizer_id: str, auction_type: str = "bid") -> Dict[str, Any]:
+        client = get_supabase_client()
+        if client:
+            try:
+                res = client.table("auctions").select("*").eq("group_id", group_id).eq("month_number", month_number).execute()
+                if res.data and len(res.data) > 0:
+                    return res.data[0]
+            except Exception as err:
+                logger.warning(f"DB check existing auction error: {err}")
+
         existing = next((a for a in DEMO_AUCTIONS_DB if a["group_id"] == group_id and a["month_number"] == month_number), None)
         if existing:
             return existing
 
         auction_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat()
+
         record = {
             "id": auction_id,
             "group_id": group_id,
             "group_name": "Ganesh Traders Community Chit #1",
             "month_number": month_number,
-            "auction_type": "bid",
+            "auction_type": auction_type,
             "status": "open",
             "total_pot": 10000.0,
             "winning_bid_discount": None,
@@ -91,6 +112,30 @@ class AuctionService:
             "closed_at": None,
             "created_at": now,
         }
+
+        if client:
+            try:
+                client.table("auctions").insert({
+                    "id": auction_id,
+                    "group_id": group_id,
+                    "month_number": month_number,
+                    "auction_type": auction_type,
+                    "status": "open",
+                    "total_pot": 10000.0,
+                    "created_at": now,
+                }).execute()
+                client.table("audit_logs").insert({
+                    "id": str(uuid.uuid4()),
+                    "actor_id": organizer_id,
+                    "action": "OPEN_AUCTION",
+                    "entity_type": "auction",
+                    "entity_id": auction_id,
+                    "metadata": {"month_number": month_number, "auction_type": auction_type},
+                    "created_at": now,
+                }).execute()
+            except Exception as err:
+                logger.warning(f"DB open_auction insert error: {err}")
+
         DEMO_AUCTIONS_DB.append(record)
         logger.info(f"Auction {auction_id} opened for group {group_id} Month {month_number}")
         return record
@@ -108,12 +153,12 @@ class AuctionService:
         if bid_dec <= 0 or bid_dec >= pot_dec:
             raise APIException(f"Bid discount must be greater than 0 and less than total pot ₹{pot_dec:,.2f}.", status_code=400)
 
-        # Replace existing draft bid for member
         global DEMO_BIDS_DB
         DEMO_BIDS_DB = [b for b in DEMO_BIDS_DB if not (b["auction_id"] == auction_id and b["membership_id"] == membership_id)]
 
         bid_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat()
+
         bid_record = {
             "id": bid_id,
             "auction_id": auction_id,
@@ -123,9 +168,22 @@ class AuctionService:
             "status": "active",
             "created_at": now,
         }
-        DEMO_BIDS_DB.append(bid_record)
 
-        # Update auction stats
+        client = get_supabase_client()
+        if client:
+            try:
+                client.table("auction_bids").insert({
+                    "id": bid_id,
+                    "auction_id": auction_id,
+                    "membership_id": membership_id,
+                    "bid_discount": float(bid_dec),
+                    "status": "active",
+                    "created_at": now,
+                }).execute()
+            except Exception as err:
+                logger.warning(f"DB place_bid insert error: {err}")
+
+        DEMO_BIDS_DB.append(bid_record)
         bids = [b for b in DEMO_BIDS_DB if b["auction_id"] == auction_id and b["status"] == "active"]
         auction["bids_count"] = len(bids)
         auction["highest_bid_discount"] = max(b["bid_discount"] for b in bids)
@@ -139,27 +197,63 @@ class AuctionService:
         if auction["status"] != "open":
             return auction
 
+        auction_type = auction.get("auction_type", "bid")
         bids = [b for b in DEMO_BIDS_DB if b["auction_id"] == auction_id and b["status"] == "active"]
-        if not bids:
-            raise APIException("Cannot close auction without valid bids.", status_code=400)
 
-        # Winner selection: Highest discount wins; earliest bid breaks ties
-        sorted_bids = sorted(bids, key=lambda b: (-b["bid_discount"], b["created_at"]))
-        winning_bid = sorted_bids[0]
+        winning_membership_id = None
+        winning_member_name = None
+        disc_dec = Decimal("0.0")
 
-        # Calculate exact payout using Decimal arithmetic
+        if auction_type == "bid":
+            if not bids:
+                raise APIException("Cannot close bidding auction without valid bids.", status_code=400)
+            sorted_bids = sorted(bids, key=lambda b: (-b["bid_discount"], b["created_at"]))
+            winning_bid = sorted_bids[0]
+            winning_membership_id = winning_bid["membership_id"]
+            winning_member_name = winning_bid["member_name"]
+            disc_dec = Decimal(str(winning_bid["bid_discount"]))
+        else:
+            # Lucky Draw: Cryptographically secure random selection among active group members
+            eligible_members = [
+                {"membership_id": "33333333-3333-3333-3333-333333333333", "member_name": "Anil Verma (Cash Member)"},
+                {"membership_id": "22222222-2222-2222-2222-222222222222", "member_name": "Demo Digital Member Priya"},
+            ]
+
+            client = get_supabase_client()
+            if client:
+                try:
+                    res = client.table("memberships").select("id, member_type, profiles(name)").eq("group_id", auction["group_id"]).eq("status", "active").execute()
+                    if res.data and len(res.data) > 0:
+                        eligible_members = [
+                            {
+                                "membership_id": m["id"],
+                                "member_name": m.get("profiles", {}).get("name", "Group Member") if m.get("profiles") else "Group Member"
+                            }
+                            for m in res.data
+                        ]
+                except Exception as err:
+                    logger.warning(f"DB lucky draw members error: {err}")
+
+            if not eligible_members:
+                raise APIException("No eligible active members found for Lucky Draw.", status_code=400)
+
+            # Secure random selection using secrets module
+            selected = secrets.choice(eligible_members)
+            winning_membership_id = selected["membership_id"]
+            winning_member_name = selected["member_name"]
+            disc_dec = Decimal("0.0")  # Fixed 0 discount for lucky draw pool winner
+
         pot_dec = Decimal(str(auction["total_pot"]))
-        disc_dec = Decimal(str(winning_bid["bid_discount"]))
         payout_dec = pot_dec - disc_dec
-
         now = datetime.utcnow().isoformat()
+
         auction["status"] = "closed"
         auction["closed_at"] = now
         auction["winning_bid_discount"] = float(disc_dec)
         auction["payout_amount"] = float(payout_dec)
         auction["winner"] = {
-            "membership_id": winning_bid["membership_id"],
-            "member_name": winning_bid["member_name"],
+            "membership_id": winning_membership_id,
+            "member_name": winning_member_name,
             "winning_bid_discount": float(disc_dec),
             "payout_amount": float(payout_dec),
         }
@@ -170,12 +264,12 @@ class AuctionService:
             "id": payout_id,
             "group_id": auction["group_id"],
             "group_name": auction["group_name"],
-            "membership_id": winning_bid["membership_id"],
-            "member_name": winning_bid["member_name"],
+            "membership_id": winning_membership_id,
+            "member_name": winning_member_name,
             "month_number": auction["month_number"],
             "amount": float(payout_dec),
             "auction_discount": float(disc_dec),
-            "mode": "cash" if "Cash" in winning_bid["member_name"] else "upi",
+            "mode": "cash" if "Cash" in winning_member_name else "upi",
             "status": "pending",
             "payout_date": now,
             "assigned_agent_id": "00000000-0000-0000-0000-000000000002",
@@ -186,23 +280,70 @@ class AuctionService:
         }
         DEMO_PAYOUTS_DB.append(payout_record)
 
+        client = get_supabase_client()
+        if client:
+            try:
+                client.table("auctions").update({
+                    "status": "closed",
+                    "closed_at": now,
+                    "winning_bid_discount": float(disc_dec),
+                    "payout_amount": float(payout_dec),
+                    "winner_membership_id": winning_membership_id,
+                }).eq("id", auction_id).execute()
+
+                client.table("payouts").insert({
+                    "id": payout_id,
+                    "group_id": auction["group_id"],
+                    "membership_id": winning_membership_id,
+                    "month_number": auction["month_number"],
+                    "amount": float(payout_dec),
+                    "auction_discount": float(disc_dec),
+                    "mode": "cash" if "Cash" in winning_member_name else "upi",
+                    "status": "pending",
+                    "created_at": now,
+                }).execute()
+
+                client.table("audit_logs").insert({
+                    "id": str(uuid.uuid4()),
+                    "actor_id": organizer_id,
+                    "action": "CLOSE_AUCTION",
+                    "entity_type": "auction",
+                    "entity_id": auction_id,
+                    "metadata": {
+                        "winner_membership_id": winning_membership_id,
+                        "payout_amount": float(payout_dec),
+                        "auction_type": auction_type,
+                    },
+                    "created_at": now,
+                }).execute()
+            except Exception as err:
+                logger.warning(f"DB close_auction update error: {err}")
+
         # Issue in-app receipt notification to winner
         notification_service.send_notification(
             user_id="00000000-0000-0000-0000-000000000004",
-            title="🎉 You won this month's auction!",
-            message=f"Winning discount: ₹{disc_dec:,.2f}. Payout amount: ₹{payout_dec:,.2f} (Status: Payout Pending).",
+            title="🎉 You won this month's allocation!",
+            message=f"Allocation type: {auction_type.upper()}. Payout amount: ₹{payout_dec:,.2f} (Status: Payout Pending).",
             notification_type="auction_winner",
             related_entity_id=payout_id,
         )
 
-        logger.info(f"Auction {auction_id} closed. Winner: {winning_bid['member_name']}. Payout: ₹{payout_dec}")
+        logger.info(f"Auction {auction_id} ({auction_type}) closed. Winner: {winning_member_name}. Payout: ₹{payout_dec}")
         return auction
 
     @classmethod
     def list_bids(cls, auction_id: str, is_organizer: bool = False) -> List[Dict[str, Any]]:
+        client = get_supabase_client()
+        if client:
+            try:
+                res = client.table("auction_bids").select("*").eq("auction_id", auction_id).execute()
+                if res.data is not None and len(res.data) > 0:
+                    return res.data
+            except Exception as err:
+                logger.warning(f"DB list_bids error: {err}")
+
         bids = [b for b in DEMO_BIDS_DB if b["auction_id"] == auction_id]
         if not is_organizer:
-            # Anonymize bidder identities for non-organizer members
             return [
                 {
                     "id": b["id"],

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from app.schemas.cash import (
@@ -10,7 +10,7 @@ from app.schemas.cash import (
     ProofURLResponse,
 )
 from app.services.agent_service import agent_service
-from app.services.contribution_service import DEMO_CONTRIBUTIONS
+from app.auth.deps import get_current_user, require_agent
 
 router = APIRouter()
 
@@ -39,30 +39,33 @@ DEMO_AGENT_CASH_MEMBERS = [
     }
 ]
 
-
 @router.get("/my-groups", response_model=List[AgentGroupSummary])
-async def list_agent_groups():
+async def list_agent_groups(current_user: Dict[str, Any] = Depends(require_agent)):
     """
     Returns list of active groups assigned to the authenticated CashBridge agent.
     """
     return DEMO_AGENT_GROUPS
 
-
 @router.get("/groups/{group_id}/cash-members", response_model=List[AgentCashMemberSummary])
-async def list_agent_cash_members(group_id: str):
+async def list_agent_cash_members(
+    group_id: str,
+    current_user: Dict[str, Any] = Depends(require_agent)
+):
     """
     Returns list of active cash members assigned to the authenticated CashBridge agent.
     """
     return [m for m in DEMO_AGENT_CASH_MEMBERS if m["group_id"] == group_id]
 
-
 @router.post("/contributions/cash", response_model=CashContributionResponse, status_code=status.HTTP_201_CREATED)
-async def record_cash_contribution(req: CashContributionRequest):
+async def record_cash_contribution(
+    req: CashContributionRequest,
+    current_user: Dict[str, Any] = Depends(require_agent)
+):
     """
     Records a doorstep cash contribution with mandatory photo proof.
     Verifies agent authorization, expected amount, and prevents duplicates.
     """
-    agent_id = "00000000-0000-0000-0000-000000000002"  # Derived from auth session in production
+    agent_id = current_user["id"]
     month_number = req.month_number or 2
 
     return agent_service.record_cash_contribution(
@@ -73,21 +76,22 @@ async def record_cash_contribution(req: CashContributionRequest):
         photo_proof_url=req.photo_proof_url,
     )
 
-
 @router.get("/contributions/{contribution_id}/proof-url", response_model=ProofURLResponse)
-async def get_contribution_proof_url(contribution_id: str):
+async def get_contribution_proof_url(
+    contribution_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """
     Generates a secure 15-minute expiring signed URL for accessing private photo proof.
     """
-    user_id = "00000000-0000-0000-0000-000000000004"
-    user_role = "member"
+    user_id = current_user["id"]
+    user_role = current_user.get("user_type", "member")
     return agent_service.get_signed_proof_url(contribution_id, user_id, user_role)
 
-
 @router.get("/cash-entries")
-async def list_agent_cash_entries():
+async def list_agent_cash_entries(current_user: Dict[str, Any] = Depends(require_agent)):
     """
     Returns chronological history of doorstep cash collections recorded by current agent.
     """
-    agent_id = "00000000-0000-0000-0000-000000000002"
-    return [c for c in DEMO_CONTRIBUTIONS if c.get("recorded_by_agent_id") == agent_id or c.get("mode") == "cash"]
+    agent_id = current_user["id"]
+    return agent_service.get_agent_entries(agent_id)

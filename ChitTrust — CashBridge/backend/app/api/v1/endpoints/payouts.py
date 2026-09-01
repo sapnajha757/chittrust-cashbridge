@@ -7,10 +7,15 @@ from app.schemas.payout import (
 )
 from app.services.payout_service import payout_service
 
+from app.auth.deps import get_current_user, require_organizer, require_agent
+
 router = APIRouter()
 
 @router.get("/payouts/{payout_id}", response_model=PayoutResponse)
-async def get_payout_details(payout_id: str):
+async def get_payout_details(
+    payout_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """
     Returns payout details, status, mode, and assigned agent information.
     """
@@ -18,25 +23,36 @@ async def get_payout_details(payout_id: str):
 
 
 @router.post("/payouts/{payout_id}/assign-agent", response_model=PayoutResponse)
-async def assign_agent_to_payout(payout_id: str, req: AssignAgentPayoutRequest):
+async def assign_agent_to_payout(
+    payout_id: str,
+    req: AssignAgentPayoutRequest,
+    current_user: Dict[str, Any] = Depends(require_organizer)
+):
     """
     Assigns CashBridge Agent to deliver doorstep cash payout to cash winner.
     """
-    organizer_id = "00000000-0000-0000-0000-000000000001"
+    organizer_id = current_user["id"]
     return payout_service.assign_agent(payout_id, req.agent_id, organizer_id)
 
 
 @router.post("/payouts/{payout_id}/cash-confirm", response_model=PayoutResponse)
-async def confirm_cash_payout(payout_id: str, req: ConfirmCashPayoutRequest):
+async def confirm_cash_payout(
+    payout_id: str,
+    req: ConfirmCashPayoutRequest,
+    current_user: Dict[str, Any] = Depends(require_agent)
+):
     """
     Verified CashBridge Agent confirms doorstep cash payout handover with photo proof.
     """
-    agent_id = "00000000-0000-0000-0000-000000000002"
+    agent_id = current_user["id"]
     return payout_service.confirm_cash_payout(payout_id, agent_id, req.cash_proof_url)
 
 
 @router.post("/payouts/{payout_id}/upi", response_model=PayoutResponse)
-async def process_upi_payout(payout_id: str):
+async def process_upi_payout(
+    payout_id: str,
+    current_user: Dict[str, Any] = Depends(require_organizer)
+):
     """
     Processes digital UPI payout for online winners.
     """

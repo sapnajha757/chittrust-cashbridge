@@ -54,3 +54,8 @@ pip-delete-this-directory.txt
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Supabase temp & Build cache
+**/.temp/
+*.tsbuildinfo
+

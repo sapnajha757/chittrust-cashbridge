@@ -3,6 +3,7 @@
 ALTER TABLE group_invitations ENABLE ROW LEVEL SECURITY;
 
 -- 1. Organizers can manage invitations for groups they organize
+DROP POLICY IF EXISTS "Organizers can manage invitations for their groups" ON group_invitations;
 CREATE POLICY "Organizers can manage invitations for their groups"
     ON group_invitations FOR ALL
     USING (
@@ -21,6 +22,7 @@ CREATE POLICY "Organizers can manage invitations for their groups"
     );
 
 -- 2. Invited users can view invitations sent to their phone number
+DROP POLICY IF EXISTS "Users can view invitations matching their phone number" ON group_invitations;
 CREATE POLICY "Users can view invitations matching their phone number"
     ON group_invitations FOR SELECT
     USING (

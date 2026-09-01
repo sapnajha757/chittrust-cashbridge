@@ -1,4 +1,6 @@
+import json
 import logging
+import requests
 from typing import Dict, Any, Optional
 from app.core.config import settings
 
@@ -10,12 +12,11 @@ class BaseAIProvider:
 
 class MockAIProvider(BaseAIProvider):
     """
-    Deterministic hackathon demo AI provider.
-    Ensures 100% reliable evaluation & zero external API failure dependency.
+    Deterministic fallback AI provider.
+    Ensures 100% reliable fallback evaluation & zero external API failure dependency.
     """
     def generate_explanation(self, prompt: str, context: Dict[str, Any]) -> Dict[str, Any]:
         risk_type = context.get("risk_type", "AGENT_ACTIVITY_SPIKE")
-        score = context.get("risk_score", 74)
 
         if risk_type == "AGENT_ACTIVITY_SPIKE":
             return {
@@ -47,13 +48,54 @@ class MockAIProvider(BaseAIProvider):
         }
 
 class GroqProvider(BaseAIProvider):
+    """
+    Real Groq LLM API provider using llama-3.3-70b-versatile or llama3-8b-8192.
+    Strictly uses database factual context to generate natural language explanations.
+    """
     def generate_explanation(self, prompt: str, context: Dict[str, Any]) -> Dict[str, Any]:
-        # Fall back to MockAIProvider if Groq API key is unconfigured
-        if not settings.GROQ_API_KEY:
+        api_key = settings.GROQ_API_KEY
+        if not api_key or api_key.startswith("gsk_placeholder"):
             return MockAIProvider().generate_explanation(prompt, context)
+
+        try:
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            system_msg = (
+                "You are the ChitTrust Risk & Trust Intelligence Assistant. "
+                "Synthesize explanations strictly using facts provided in the context JSON. "
+                "Do NOT invent numbers, trust scores, or financial transactions. "
+                "Respond in valid JSON with keys: summary, evidence, recommended_action, confidence."
+            )
+            user_msg = f"Prompt: {prompt}\nContext: {json.dumps(context)}"
+
+            payload = {
+                "model": "llama-3.3-70b-versatile",
+                "messages": [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                "temperature": 0.2,
+                "response_format": {"type": "json_object"}
+            }
+
+            response = requests.post(url, headers=headers, json=payload, timeout=8)
+            if response.status_code == 200:
+                data = response.json()
+                content = data["choices"][0]["message"]["content"]
+                parsed = json.loads(content)
+                parsed["confidence"] = parsed.get("confidence", 0.90)
+                return parsed
+            else:
+                logger.warning(f"Groq API returned status {response.status_code}: {response.text}")
+        except Exception as err:
+            logger.error(f"GroqProvider execution failed: {err}")
+
         return MockAIProvider().generate_explanation(prompt, context)
 
 def get_ai_provider() -> BaseAIProvider:
-    if settings.DEMO_MODE or not settings.GROQ_API_KEY:
-        return MockAIProvider()
-    return GroqProvider()
+    if settings.GROQ_API_KEY and not settings.GROQ_API_KEY.startswith("gsk_placeholder"):
+        return GroqProvider()
+    return MockAIProvider()

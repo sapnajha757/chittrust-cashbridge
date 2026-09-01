@@ -41,8 +41,10 @@ END $$;
 -- 3. Enable RLS on trust_score_events
 ALTER TABLE trust_score_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can read own trust score events" ON trust_score_events;
 CREATE POLICY "Users can read own trust score events" ON trust_score_events FOR SELECT USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Organizers can view trust score events of members in their groups" ON trust_score_events;
 CREATE POLICY "Organizers can view trust score events of members in their groups" ON trust_score_events FOR SELECT USING (
     EXISTS (
         SELECT 1 FROM groups g

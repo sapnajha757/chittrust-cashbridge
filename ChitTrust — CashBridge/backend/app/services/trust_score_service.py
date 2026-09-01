@@ -80,6 +80,38 @@ class TrustScoreService:
 
         for contrib in sorted_contribs:
             status = contrib.get("payment_status") or contrib.get("status")
+            if status == "missed":
+                score_before = current_score
+                streak_before = current_streak
+                month_num = contrib.get("month_number", 1)
+                mode = contrib.get("mode") or contrib.get("payment_mode") or "upi"
+                contrib_id = contrib.get("id")
+
+                points = MISSED_POINTS
+                event_type = "missed_payment"
+                total_missed += 1
+                current_streak = 0
+                reason = f"Missed contribution for Month {month_num} ({MISSED_POINTS})"
+
+                current_score = max(MIN_SCORE, min(MAX_SCORE, current_score + points))
+
+                events_generated.append({
+                    "id": str(uuid.uuid4()),
+                    "user_id": contrib.get("user_id", "demo_user"),
+                    "contribution_id": contrib_id,
+                    "month_number": month_num,
+                    "payment_mode": mode,
+                    "event_type": event_type,
+                    "points": points,
+                    "streak_before": streak_before,
+                    "streak_after": 0,
+                    "score_before": score_before,
+                    "score_after": current_score,
+                    "reason": reason,
+                    "created_at": contrib.get("payment_date") or datetime.utcnow().isoformat(),
+                })
+                continue
+
             if status != "successful":
                 # Pending payments do not affect score yet
                 continue

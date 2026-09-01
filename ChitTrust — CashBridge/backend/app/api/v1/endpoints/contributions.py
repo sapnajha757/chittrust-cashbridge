@@ -12,11 +12,17 @@ from app.schemas.contribution import (
 from app.services.contribution_service import contribution_service, DEMO_CONTRIBUTIONS
 from app.core.exceptions import APIException
 
+from typing import List, Optional, Dict, Any
+from app.auth.deps import get_current_user, require_member, require_organizer
+
 router = APIRouter()
 
 
 @router.post("/upi/order", response_model=UPIOrderResponse, status_code=status.HTTP_201_CREATED)
-async def create_upi_contribution_order(req: UPIOrderCreateRequest):
+async def create_upi_contribution_order(
+    req: UPIOrderCreateRequest,
+    current_user: Dict[str, Any] = Depends(require_member)
+):
     """
     Creates a Razorpay Test Mode Order for monthly UPI contribution.
     Server calculates amount from group settings.
@@ -25,7 +31,10 @@ async def create_upi_contribution_order(req: UPIOrderCreateRequest):
 
 
 @router.post("/upi/verify", response_model=ContributionResponse)
-async def verify_upi_contribution_payment(req: UPIVerifyRequest):
+async def verify_upi_contribution_payment(
+    req: UPIVerifyRequest,
+    current_user: Dict[str, Any] = Depends(require_member)
+):
     """
     Performs server-side HMAC-SHA256 signature verification for Razorpay payment callback.
     """
@@ -39,7 +48,10 @@ async def verify_upi_contribution_payment(req: UPIVerifyRequest):
 
 
 @router.get("/memberships/{membership_id}/contributions", response_model=List[ContributionResponse])
-async def get_membership_contribution_history(membership_id: str):
+async def get_membership_contribution_history(
+    membership_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """
     Retrieves complete contribution payment history for a member.
     """
@@ -47,7 +59,10 @@ async def get_membership_contribution_history(membership_id: str):
 
 
 @router.get("/memberships/{membership_id}/current-contribution", response_model=ContributionResponse)
-async def get_current_month_contribution(membership_id: str):
+async def get_current_month_contribution(
+    membership_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """
     Retrieves current month contribution payment status for a member.
     """
@@ -75,7 +90,10 @@ async def get_current_month_contribution(membership_id: str):
 
 
 @router.get("/groups/{group_id}/summary", response_model=ContributionSummaryResponse)
-async def get_group_contribution_summary(group_id: str):
+async def get_group_contribution_summary(
+    group_id: str,
+    current_user: Dict[str, Any] = Depends(require_organizer)
+):
     """
     Returns monthly collection summary for organizers (expected vs collected vs pending).
     """

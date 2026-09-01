@@ -61,13 +61,18 @@ ALTER TABLE ai_risk_assessments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_usage_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Organizers can view AI risk assessments for their groups" ON ai_risk_assessments;
 CREATE POLICY "Organizers can view AI risk assessments for their groups" ON ai_risk_assessments FOR SELECT USING (
     EXISTS (SELECT 1 FROM groups g WHERE g.id = ai_risk_assessments.group_id AND g.organizer_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "Organizers can update AI risk assessments for their groups" ON ai_risk_assessments;
 CREATE POLICY "Organizers can update AI risk assessments for their groups" ON ai_risk_assessments FOR UPDATE USING (
     EXISTS (SELECT 1 FROM groups g WHERE g.id = ai_risk_assessments.group_id AND g.organizer_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "Users can view own AI audit logs" ON ai_audit_logs;
 CREATE POLICY "Users can view own AI audit logs" ON ai_audit_logs FOR SELECT USING (actor_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can view own AI usage logs" ON ai_usage_logs;
 CREATE POLICY "Users can view own AI usage logs" ON ai_usage_logs FOR SELECT USING (user_id = auth.uid());

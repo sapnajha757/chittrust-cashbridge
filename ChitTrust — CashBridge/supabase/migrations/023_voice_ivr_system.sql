@@ -46,6 +46,11 @@ ALTER TABLE voice_pins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE voice_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE voice_call_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own voice PIN" ON voice_pins;
 CREATE POLICY "Users can manage own voice PIN" ON voice_pins FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can view own voice sessions" ON voice_sessions;
 CREATE POLICY "Users can view own voice sessions" ON voice_sessions FOR SELECT USING (authenticated_user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can view own voice call logs" ON voice_call_logs;
 CREATE POLICY "Users can view own voice call logs" ON voice_call_logs FOR SELECT USING (user_id = auth.uid());

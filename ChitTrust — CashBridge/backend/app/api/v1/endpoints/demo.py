@@ -6,18 +6,20 @@ from app.services.risk_engine import DEMO_RISK_FLAGS_DB
 from app.services.ai.risk_engine import DEMO_AI_ASSESSMENTS_DB
 from datetime import datetime
 
+from app.auth.deps import is_demo_fallback_allowed
+
 router = APIRouter()
 
 @router.post("/reset")
 async def reset_demo_dataset():
     """
     Restores preconfigured demo dataset for hackathon presentation.
-    Guarded by DEMO_MODE=true. Never available in production.
+    Guarded by ENVIRONMENT=development and DEMO_MODE=true. Never available in production.
     """
-    if not settings.DEMO_MODE:
+    if not is_demo_fallback_allowed():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Demo reset is only available when DEMO_MODE is enabled.",
+            detail="Demo reset is only available when ENVIRONMENT is 'development' and DEMO_MODE is enabled.",
         )
 
     # 1. Reset Contributions

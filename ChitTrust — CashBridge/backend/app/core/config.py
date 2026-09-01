@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     # Supabase Configuration
     SUPABASE_URL: str = "https://placeholder.supabase.co"
+    SUPABASE_ANON_KEY: str = "placeholder_anon_key"
     SUPABASE_SERVICE_ROLE_KEY: str = "placeholder_key"
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/chittrust"
 

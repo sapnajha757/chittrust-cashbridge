@@ -47,10 +47,12 @@ CREATE INDEX IF NOT EXISTS idx_risk_flags_created ON risk_flags(created_at);
 -- Enable RLS
 ALTER TABLE risk_flags ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Organizers can view risk flags for their groups" ON risk_flags;
 CREATE POLICY "Organizers can view risk flags for their groups" ON risk_flags FOR SELECT USING (
     EXISTS (SELECT 1 FROM groups g WHERE g.id = risk_flags.group_id AND g.organizer_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "Organizers can update risk flags for their groups" ON risk_flags;
 CREATE POLICY "Organizers can update risk flags for their groups" ON risk_flags FOR UPDATE USING (
     EXISTS (SELECT 1 FROM groups g WHERE g.id = risk_flags.group_id AND g.organizer_id = auth.uid())
 );

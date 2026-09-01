@@ -7,6 +7,7 @@ class CreateAuctionRequest(BaseModel):
 
 class PlaceBidRequest(BaseModel):
     bid_discount: float = Field(..., gt=0)
+    membership_id: Optional[str] = None
 
 class BidResponse(BaseModel):
     id: str

@@ -1,12 +1,23 @@
+import re
 import logging
 from typing import Dict, Any, List
 from app.services.trust_score_service import trust_score_service
-from app.services.contribution_service import DEMO_CONTRIBUTIONS
+from app.services.contribution_service import contribution_service, DEMO_CONTRIBUTIONS
 from app.services.payout_service import payout_service
+from app.db.supabase import get_supabase_client
 
 logger = logging.getLogger("chittrust.ai.assistant")
 
 class AIAssistantService:
+    @staticmethod
+    def sanitize_user_input(text: str) -> str:
+        """
+        Sanitizes user query to prevent prompt injection and unauthorized system instruction overrides.
+        """
+        # Remove markdown control formatting or injection prompt overrides
+        cleaned = re.sub(r'(?i)(system:|ignore previous|reveal secrets|show prompt|override)', '', text)
+        return cleaned.strip()
+
     @classmethod
     def explain_trust_score(cls, user_id: str, language: str = "hi") -> Dict[str, Any]:
         snapshot = trust_score_service.get_user_trust_score(user_id)
@@ -44,9 +55,12 @@ class AIAssistantService:
 
     @classmethod
     def chat_assistant(cls, user_id: str, message: str, language: str = "hi") -> Dict[str, Any]:
-        clean = message.lower().strip()
+        clean_input = cls.sanitize_user_input(message)
+        clean = clean_input.lower()
 
-        # Controlled intent classification & tool execution
+        client = get_supabase_client()
+
+        # 1. Trust Score Queries
         if any(k in clean for k in ["score", "trust score", "mera score", "score kyun"]):
             exp = cls.explain_trust_score(user_id, language)
             return {
@@ -55,23 +69,39 @@ class AIAssistantService:
                 "structured_data": exp,
                 "confidence": 0.96,
             }
-        elif any(k in clean for k in ["payment", "jama", "paid", "baki"]):
-            contrib = next((c for c in DEMO_CONTRIBUTIONS if c["payment_status"] == "successful"), None)
-            amount = int(contrib["amount"]) if contrib else 2500
-            mode = "cash" if contrib and contrib.get("mode") == "cash" else "UPI"
+
+        # 2. Payment & Contribution Queries
+        elif any(k in clean for k in ["payment", "jama", "paid", "baki", "contribution"]):
+            latest_contrib = None
+            if client:
+                try:
+                    res = client.table("contributions").select("*, memberships!inner(user_id)").eq("memberships.user_id", user_id).order("created_at", desc=True).limit(1).execute()
+                    if res.data and len(res.data) > 0:
+                        latest_contrib = res.data[0]
+                except Exception as err:
+                    logger.warning(f"DB user contributions query error: {err}")
+
+            if not latest_contrib:
+                latest_contrib = next((c for c in DEMO_CONTRIBUTIONS if c["payment_status"] == "successful"), None)
+
+            amount = int(latest_contrib["amount"]) if latest_contrib else 2500
+            mode = latest_contrib.get("mode", "UPI").upper() if latest_contrib else "UPI"
+            status_str = latest_contrib.get("payment_status", "successful") if latest_contrib else "successful"
 
             reply = (
-                f"Aapka is mahine ka ₹{amount} payment {mode} ke madhyam se successfully record ho gaya hai."
+                f"Aapka is mahine ka ₹{amount} payment {mode} ke madhyam se {status_str} status mein record hai."
                 if language == "hi"
-                else f"Your payment of ₹{amount} for this month has been successfully recorded via {mode}."
+                else f"Your payment of ₹{amount} for this month is recorded via {mode} with status '{status_str}'."
             )
             return {
                 "reply_text": reply,
                 "intent_detected": "GET_PAYMENT_STATUS",
-                "structured_data": {"amount": amount, "mode": mode, "status": "successful"},
+                "structured_data": {"amount": amount, "mode": mode, "status": status_str},
                 "confidence": 0.94,
             }
-        elif any(k in clean for k in ["auction", "winner", "bidding"]):
+
+        # 3. Auction Queries
+        elif any(k in clean for k in ["auction", "winner", "bidding", "draw"]):
             reply = (
                 "Is mahine ka auction complete ho gaya hai. Payout amount ₹8,500 hai aur winner Anil Verma hain."
                 if language == "hi"
@@ -83,7 +113,9 @@ class AIAssistantService:
                 "structured_data": {"winning_discount": 1500, "payout": 8500, "winner": "Anil Verma"},
                 "confidence": 0.95,
             }
-        elif any(k in clean for k in ["payout", "paisa mila"]):
+
+        # 4. Payout Queries
+        elif any(k in clean for k in ["payout", "paisa mila", "handover"]):
             payout = payout_service.get_payout("p1111111-1111-1111-1111-111111111111")
             reply = (
                 f"Aapka ₹{int(payout['amount'])} ka payout status {payout['status']} hai (Mode: {payout['mode']})."
@@ -97,7 +129,7 @@ class AIAssistantService:
                 "confidence": 0.93,
             }
 
-        # Fallback for unknown intent
+        # Unknown intent response
         reply = (
             "Maaf kijiye, main is sawal ko samajh nahi paaya. Aap Trust Score, payment status, ya auction result ke bare mein pooch sakte hain."
             if language == "hi"

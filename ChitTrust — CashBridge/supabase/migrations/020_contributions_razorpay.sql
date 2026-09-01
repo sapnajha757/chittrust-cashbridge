@@ -48,4 +48,5 @@ COMMENT ON TABLE payment_webhook_events IS 'Idempotency ledger for incoming paym
 -- Enable RLS on payment_webhook_events
 ALTER TABLE payment_webhook_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Service Role manages webhook events" ON payment_webhook_events;
 CREATE POLICY "Service Role manages webhook events" ON payment_webhook_events FOR ALL USING (true) WITH CHECK (true);
