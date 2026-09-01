@@ -15,20 +15,20 @@ export default function DashboardRootPage() {
     const hasDemoCookie = typeof document !== 'undefined' && document.cookie.includes('chittrust_demo_session');
 
     if (!user && !profile && !hasDemoCookie) {
-      router.push('/login');
+      window.location.replace('/login');
       return;
     }
 
     const currentRole = profile?.role || 'organizer';
+    const targetUrl =
+      currentRole === 'organizer'
+        ? '/dashboard/organizer'
+        : currentRole === 'agent'
+        ? '/dashboard/agent'
+        : '/dashboard/member';
 
-    if (currentRole === 'organizer') {
-      router.push('/dashboard/organizer');
-    } else if (currentRole === 'agent') {
-      router.push('/dashboard/agent');
-    } else {
-      router.push('/dashboard/member');
-    }
-  }, [user, profile, loading, router]);
+    window.location.replace(targetUrl);
+  }, [user, profile, loading]);
 
   return (
     <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-3">
