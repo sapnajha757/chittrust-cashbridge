@@ -64,7 +64,16 @@ class AgentService:
         if abs(amount - expected_amount) > 0.01:
             raise APIException(f"Invalid contribution amount. Expected ₹{expected_amount:,.2f}.", status_code=400)
 
-        # 3. Duplicate payment check
+        # 3. Photo proof validation
+        if not photo_proof_url or not isinstance(photo_proof_url, str):
+            raise APIException("Mandatory photo proof URL is missing.", status_code=400)
+        
+        is_data_uri = photo_proof_url.startswith("data:image/")
+        is_http_url = photo_proof_url.startswith("http://") or photo_proof_url.startswith("https://")
+        if not (is_data_uri or is_http_url):
+            raise APIException("Invalid photo proof URL format. Must be valid HTTP/HTTPS URL or image Data URI.", status_code=400)
+
+        # 4. Duplicate payment check
         existing_paid = next(
             (c for c in DEMO_CONTRIBUTIONS if c["membership_id"] == membership_id and c["month_number"] == month_number and c["payment_status"] == "successful"),
             None
@@ -72,7 +81,7 @@ class AgentService:
         if existing_paid:
             raise APIException("This month's contribution is already recorded.", status_code=400)
 
-        # 4. Atomic contribution creation
+        # 5. Atomic contribution creation
         contrib_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat()
 
@@ -126,11 +135,11 @@ class AgentService:
 
         DEMO_CONTRIBUTIONS.append(record)
 
-        # 5. Atomic Agent Statistics Update
+        # 6. Atomic Agent Statistics Update
         agent["total_entries"] = agent.get("total_entries", 0) + 1
         agent["total_amount_handled"] = agent.get("total_amount_handled", 0.0) + amount
 
-        # 6. Issue In-App Member Notification
+        # 7. Issue In-App Member Notification
         agent_name = agent.get("name") or agent.get("agent_name") or "Suresh Patel (CashBridge Agent)"
         member_user_id = "00000000-0000-0000-0000-000000000004" # Anil Verma
         notification_service.send_notification(

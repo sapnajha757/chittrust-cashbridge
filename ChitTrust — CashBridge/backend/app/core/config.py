@@ -1,6 +1,6 @@
 import json
-from typing import List, Union
-from pydantic import field_validator
+from typing import List, Union, Optional
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "development"
+    APP_ENV: Optional[str] = None
     DEMO_MODE: bool = True
     LOG_LEVEL: str = "INFO"
 
@@ -56,5 +57,35 @@ class Settings(BaseSettings):
         case_sensitive=True,
     )
 
+    @model_validator(mode="after")
+    def validate_production_hardening(self) -> "Settings":
+        effective_env = (self.APP_ENV or self.ENVIRONMENT).lower()
+
+        if effective_env == "production":
+            if "*" in self.CORS_ORIGINS:
+                raise ValueError("Insecure CORS wildcard '*' is prohibited in production when credentials are enabled.")
+
+            if self.DEMO_MODE:
+                object.__setattr__(self, "DEMO_MODE", False)
+
+            # Check critical production credentials
+            critical_missing = []
+            if not self.SUPABASE_URL or "placeholder" in self.SUPABASE_URL:
+                critical_missing.append("SUPABASE_URL")
+            if not self.SUPABASE_SERVICE_ROLE_KEY or "placeholder" in self.SUPABASE_SERVICE_ROLE_KEY:
+                critical_missing.append("SUPABASE_SERVICE_ROLE_KEY")
+            if not self.RAZORPAY_KEY_SECRET or "placeholder" in self.RAZORPAY_KEY_SECRET:
+                critical_missing.append("RAZORPAY_KEY_SECRET")
+            if not self.GROQ_API_KEY or "placeholder" in self.GROQ_API_KEY:
+                critical_missing.append("GROQ_API_KEY")
+
+            if critical_missing:
+                raise ValueError(
+                    f"PRODUCTION HARDENING FAIL-FAST: Missing or placeholder credentials detected for: {', '.join(critical_missing)}"
+                )
+
+        return self
+
 
 settings = Settings()
+

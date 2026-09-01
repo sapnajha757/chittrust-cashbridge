@@ -1,8 +1,11 @@
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.exceptions import APIException, api_exception_handler, generic_exception_handler
+from app.core.rate_limit import limiter
 from app.api.v1.api import api_router
 from app.api.v1.endpoints.health import router as health_router
 
@@ -17,6 +20,10 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_STR}/redoc",
 )
 
+# SlowAPI Rate Limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Security Headers Middleware
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -24,6 +31,13 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(self), geolocation=()"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none';"
+    
+    effective_env = (settings.APP_ENV or settings.ENVIRONMENT).lower()
+    if effective_env == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        
     return response
 
 # CORS Configuration
@@ -45,7 +59,18 @@ app.include_router(health_router, prefix="/api")
 
 @app.get("/health")
 async def top_level_health():
-    return {"status": "ok", "environment": settings.ENVIRONMENT, "demo_mode": settings.DEMO_MODE}
+    effective_env = (settings.APP_ENV or settings.ENVIRONMENT).lower()
+    return {
+        "status": "ok",
+        "environment": effective_env,
+        "demo_mode": settings.DEMO_MODE,
+        "services": {
+            "database": "available",
+            "voice": settings.VOICE_PROVIDER,
+            "payments": "razorpay_active",
+            "ai": "groq_active",
+        }
+    }
 
 @app.get("/")
 async def root():
@@ -54,3 +79,4 @@ async def root():
         "docs": f"{settings.API_V1_STR}/docs",
         "health": "/health",
     }
+
