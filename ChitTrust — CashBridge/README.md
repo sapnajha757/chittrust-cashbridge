@@ -4,104 +4,251 @@
 
 ---
 
-## 📌 Project Overview
+## 📌 Problem
 
-**ChitTrust + CashBridge** is a hackathon-ready financial inclusion platform built specifically for informal and semi-formal community savings groups (Chit Funds, ROSCAs, Self-Help Groups) across urban and rural India.
-
-It bridges the gap between **digital-first members** (who prefer UPI/online payments) and **cash-based micro-savers** (who lack digital literacy or banking access), creating a **unified Trust Score** that treats digital and verified cash contributions with equal credit weight.
-
----
-
-## 🚀 Key Features & Highlights
-
-- **Mixed Digital + Doorstep Cash Ledger**: Seamlessly integrates Razorpay UPI Test Mode payments and CashBridge Agent doorstep cash collection with mandatory photo proof.
-- **Equal Credit Weight Trust Score Engine**: Math-based Trust Score (Base 100+) giving identical credit weight (+5 points) to cash and digital payments.
-- **Monthly Auction & Payout Engine**: Bid auctions (highest valid discount wins) and lucky draws with exact fixed-point `Decimal` payout calculations.
-- **Feature Phone Multilingual Voice IVR**: Feature phone simulator (`/dev/voice-demo`) supporting natural Hindi voice queries (*"Mera Trust Score kya hai?"*).
-- **AI Trust Intelligence & Risk Engine**: 7-rule hybrid operational risk evaluator with 0–100 Risk Scores, 86% AI confidence index, and human-in-the-loop review portal (`/risk-review`).
-- **Ask ChitTrust Conversational AI Widget**: Interactive chat assistant answering financial questions in Hindi/English using authorized database context.
-- **Production Hardened & Audited**: 27 PostgreSQL migration files, 21 RLS security policies, security headers, rate limiting, and zero committed secrets.
+In informal and semi-formal community savings groups (Chit Funds, ROSCAs, Self-Help Groups) across India:
+- **Cash Exclusion**: Cash-paying members are often excluded from formal credit scoring or digitized records.
+- **Lack of Transparency**: Paper ledgers, missing transaction receipts, and unverified cash collections lead to disputes.
+- **Credit Bias**: Digital payment users receive credit advantages, while cash micro-savers remain financially invisible.
+- **Literacy & Access Barriers**: Low-literacy members cannot navigate complex banking apps or English-only user interfaces.
 
 ---
 
-## 🛠️ Tech Stack & Integrations
+## 💡 Solution
 
-### Frontend
-- **Framework**: Next.js 14+ (App Router)
-- **Language**: TypeScript
-- **State & Auth**: Supabase Auth + React Auth Context (`useAuth`)
-- **Payments & AI**: Razorpay Checkout SDK (Test Mode) + Mobile Camera Capture + Voice Simulator + Ask ChitTrust AI Widget
-- **Styling**: Tailwind CSS & Lucide React
-
-### Backend & Database
-- **Framework**: FastAPI (Python 3.11+)
-- **Database**: Supabase PostgreSQL (21 RLS-Enabled Tables)
-- **AI Intelligence**: Hybrid Rule Engine + Groq LLM API Integration (`gsk_...`)
-- **Telephony & Voice**: Telephony Abstraction (Twilio Telephony & Mock Provider)
-- **Security**: Row Level Security (RLS), Pgcrypto, Security Headers, SlowAPI Rate-Limiting
+**ChitTrust + CashBridge** bridges digital and cash participants into a single transparent community ledger:
+- **Mixed Digital + Cash Groups**: Supports digital members (Razorpay UPI Test Mode) alongside cash-based micro-savers in the same group.
+- **Verified CashBridge Agents**: Doorstep cash collection with mandatory photo proof uploaded to private, expiring signed URL storage.
+- **Equal-Weight Trust Score**: Math-based credit score engine (+5 points for on-time payments) treating cash and UPI with identical credit status.
+- **Feature Phone Multilingual Voice IVR**: Feature phone interface and simulator for checking Trust Scores and payment status in natural Hindi.
+- **AI Risk Intelligence & Explainable AI**: Hybrid 7-rule operational risk engine with 0–100 risk scores and human-in-the-loop review portal.
 
 ---
 
-## ⚡ Quick Start & App Setup Instructions
+## ✨ Key Features
 
-### 1. Frontend Setup
+- **Digital Payments**: Integrated Razorpay Test Mode with HMAC-SHA256 signature verification and webhook idempotency.
+- **CashBridge Agent App**: Mobile-first doorstep cash collection with photo capture and member verification.
+- **Explainable Trust Score**: Base score (100+), streak bonuses, and detailed breakdown of scoring factors (Cash = UPI).
+- **Monthly Auctions & Payouts**: Support for both Bid Auctions (highest valid discount wins) and Lucky Draws with `Decimal` fixed-point math.
+- **Ask ChitTrust AI**: Conversational assistant answering user queries in Hindi/English using database context and prompt injection protection.
+- **Voice IVR Telephony**: Voice portal supporting phone lookup, authentication, and Hindi responses.
+- **Risk Review Portal**: 7-rule risk detection engine with 0–100 risk scoring and organizer resolution capabilities.
+- **Audit Logging & Notifications**: Full audit logging of all financial transactions and real-time in-app notifications.
+
+---
+
+## 🏗️ Architecture
+
+```
+                               ┌───────────────────────────────────┐
+                               │       Next.js 14 Frontend         │
+                               │  (App Router, React Auth Context) │
+                               └─────────────────┬─────────────────┘
+                                                 │ /api/v1/* (Proxy Rewrite)
+                                                 ▼
+                               ┌───────────────────────────────────┐
+                               │       FastAPI Backend             │
+                               │   (Auth, Risk Engine, AI, IVR)    │
+                               └────────┬─────────────────┬────────┘
+                                        │                 │
+            ┌───────────────────────────┴─┐             ┌─┴────────────────────────────┐
+            ▼                             ▼             ▼                              ▼
+┌───────────────────────┐   ┌──────────────────────┐  ┌───────────────────┐  ┌───────────────────────┐
+│ Supabase Cloud DB     │   │ Razorpay Test Mode   │  │ Groq LLM API      │  │ Twilio / Mock Voice   │
+│ (21 Tables, RLS)      │   │ (UPI & Webhooks)     │  │ (AI Assistant)    │  │ (Telephony IVR)       │
+└───────────────────────┘   └──────────────────────┘  └───────────────────┘  └───────────────────────┘
+```
+
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend**: Next.js 14+ (App Router), TypeScript, Tailwind CSS, Lucide React, Supabase Auth Helper SDK.
+- **Backend**: FastAPI (Python 3.14 / 3.11+), Pydantic v2, Pytest, Supabase-py.
+- **Database**: Supabase Cloud PostgreSQL (21 tables, 27 migrations, Row Level Security policies).
+- **Payments**: Razorpay Test Mode (HMAC Signature Verification & Webhook Idempotency).
+- **AI & Voice**: Groq API (`gsk_...`), Twilio / Voice Simulator.
+
+---
+
+## 📁 Project Structure
+
+```
+ChitTrust — CashBridge/
+├── backend/
+│   ├── app/
+│   │   ├── api/v1/endpoints/   # REST endpoints (auth, groups, contributions, auctions, risk, ai, voice)
+│   │   ├── auth/               # Bearer JWT verification & RBAC authorization
+│   │   ├── core/               # App configuration & security settings
+│   │   ├── db/                 # Supabase client initialization
+│   │   ├── models/             # Pydantic schemas
+│   │   └── services/           # Business logic (Trust Score, Risk Engine, AI, Auctions, Payouts)
+│   ├── tests/                  # Pytest backend test suite (57/57 passing)
+│   ├── .env.example
+│   ├── requirements.txt
+│   └── run.py
+├── frontend/
+│   ├── app/                    # Next.js App Router pages (27 pages compiling)
+│   ├── components/             # React UI components (Agent, Member, Organizer, Risk, Voice, AI)
+│   ├── hooks/                  # Custom React hooks (useAuth, useToast)
+│   ├── lib/                    # Supabase client & utility functions
+│   ├── middleware.ts           # Route protection & role enforcement
+│   ├── .env.example
+│   └── package.json
+├── supabase/
+│   └── migrations/             # 27 SQL migration files
+└── README.md
+```
+
+---
+
+## ⚙️ Local Setup
+
+### Prerequisites
+- Node.js 18+ & npm
+- Python 3.10+
+- Supabase account (or local Supabase instance)
+
+### Environment Variables
+
+Copy `.env.example` templates to `.env.local` (frontend) and `backend/.env`:
 
 ```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
+# Root template reference
+cp .env.example frontend/.env.local
+cp backend/.env.example backend/.env
 ```
-Available at `http://localhost:3000`.
 
-### 2. Backend Setup
+Ensure placeholders are replaced with your Supabase keys and provider credentials. **Never commit real secret keys.**
+
+---
+
+## 🗄️ Database Setup
+
+The project uses Supabase PostgreSQL with 21 synchronized tables and 21 RLS policies:
+- Run migrations from `supabase/migrations/` using Supabase CLI or direct SQL Editor in Supabase Cloud.
+- Verified tables include: `profiles`, `groups`, `memberships`, `agents`, `contributions`, `auctions`, `bids`, `payouts`, `trust_scores`, `risk_flags`, `notifications`, `audit_logs`, etc.
+
+---
+
+## 🚀 Running Backend
 
 ```bash
 cd backend
-
-# Activate virtual environment (Windows PowerShell)
+python -m venv .venv
+# On Windows:
 .venv\Scripts\Activate.ps1
+# On Linux/macOS:
+source .venv/bin/activate
 
-# Run FastAPI backend server
+pip install -r requirements.txt
 python run.py
 ```
-Available at `http://localhost:8000` (API Docs at `http://localhost:8000/api/v1/docs`).
+
+Backend will run at `http://localhost:8000`. Swagger API docs available at `http://localhost:8000/api/v1/docs`.
 
 ---
 
-## 📋 Environment Configuration Template (`.env.example`)
+## 💻 Running Frontend
 
-Refer to [.env.example](file:///c:/Users/sapna%20jha/ChitTrust%20—%20CashBridge/.env.example) for template variable placeholders.
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-- **Supabase Project**: Configured for project `ssishktinopnepbydsgh`.
-- **Razorpay Test Mode**: Active Key ID `rzp_test_TWRGglD9NiPvbo`.
-- **Groq LLM**: Active LLM Key (`gsk_...`).
-- **Twilio Voice IVR**: Active Account SID `AC9bdd32a...`.
+Frontend will run at `http://localhost:3000`.
 
 ---
 
-## 📈 Complete 13-Phase Roadmap
+## 🧪 Running Tests
 
-- [x] **Phase 1: Project Foundation** (Tech Stack, Modular Layout, Routing, Health Check, Types, Documentation)
-- [x] **Phase 2: Database Schemas, RLS Security, Triggers & Storage** (10 Tables, 9 Enums, Triggers, RLS, Storage Bucket)
-- [x] **Phase 3: Authentication, Onboarding & Role-Based Access** (Phone OTP, Profile Setup, Middleware, Dashboards)
-- [x] **Phase 4: Group Creation & Membership Management** (Group Setup, Digital/Cash Invites, Agent Assignment, Exited State)
-- [x] **Phase 5: Digital Contributions & Razorpay Test Payments** (Razorpay Test Mode, HMAC-SHA256 Verification, Webhook Idempotency, Receipts)
-- [x] **Phase 6: CashBridge Doorstep Cash Verification Workflows** (Mobile-first Agent App, Photo Proof Capture, Private Storage, Notifications)
-- [x] **Phase 7: Explainable TrustScore Calculation Engine** (Equal Credit Weight, Deterministic Points, Audit Ledger, Timeline UI)
-- [x] **Phase 8: Multilingual Voice IVR & Hindi Trust Score Subsystem** (Feature Phone Telephony, Hindi Voice Prompts, Provider Abstraction, Voice Simulator)
-- [x] **Phase 9: Monthly Auction & Payout Engine** (Bid Auctions, Lucky Draws, Net Payout Calculation, Doorstep Cash Payouts, Audit Trail)
-- [x] **Phase 10: Analytics, Notifications & Risk Intelligence Subsystem** (Platform KPIs, Collection Rates, 7-Rule Risk Engine, Flag Resolutions, In-App Notifications)
-- [x] **Phase 11: Production Hardening, Security, Compliance & Final Polish** (Security Audit, RLS Verification, Rate Limiting, Privacy/Terms Pages, Demo Mode)
-- [x] **Phase 12: AI Trust Intelligence, Fraud Detection & Predictive Risk Engine** (0-100 Risk Scoring, AI Assistant, Hindi Explanations, Human Review Portal, Safety Guardrails)
-- [x] **Phase 13: Production Hardening, UX Polish, Demo Mode & Final Launch Readiness** (Landing Page Hero Demo Card, Role Dashboards, One-Click Demo Reset, 4-Minute Hackathon Demo Script)
+### Backend Unit & Integration Tests (Pytest)
+
+```bash
+cd backend
+python -m pytest
+```
+*Expected Result*: **57/57 tests passing**.
+
+### Frontend Build Test (Next.js)
+
+```bash
+cd frontend
+npm run build
+```
+*Expected Result*: **27/27 static & dynamic pages compiled with 0 TypeScript/build errors**.
+
+---
+
+## 🎬 Demo Flow
+
+1. **Landing Page** (`/`): Overview of ChitTrust + CashBridge inclusion message.
+2. **Login & Role Selection** (`/login`): Log in as Organizer, Digital Member, Cash Member, or CashBridge Agent.
+3. **Organizer Dashboard** (`/dashboard/organizer`): Create group, invite digital & cash members, assign verified agent.
+4. **Digital Member Payment** (`/groups/[id]/contributions`): Pay monthly contribution using Razorpay TEST MODE.
+5. **Agent Doorstep Cash Entry** (`/agent/cash-entry`): Select group/member, enter amount, capture mandatory photo proof, submit.
+6. **Trust Score Inspection** (`/profile/trust-score`): View explainable score timeline (+5 points for both Cash & UPI).
+7. **Monthly Auction & Payout** (`/groups/[id]/auction`): Submit discount bid, view winner, inspect calculated net payout.
+8. **Ask ChitTrust AI** (Widget): Ask *"Mera trust score kya hai?"* in natural Hindi.
+9. **Voice IVR Simulator** (`/dev/voice-demo`): Test toll-free phone lookup and voice status retrieval.
+10. **Risk Review Portal** (`/risk-review`): Inspect AI Risk Scores and resolve/dismiss risk flags.
+
+---
+
+## 🔐 Security
+
+- **JWT Authentication**: Supabase Bearer JWT token verification on all protected FastAPI endpoints.
+- **Role-Based Access Control (RBAC)**: Strict permission enforcement for `organizer`, `member`, and `agent`.
+- **Row Level Security (RLS)**: 21 Supabase RLS policies ensuring tenant data isolation.
+- **Payment Verification**: Mandatory HMAC-SHA256 signature verification for Razorpay payments and webhooks.
+- **Webhook Idempotency**: Duplicate event prevention using payload signature hashing.
+- **Prompt Injection Defense**: Input sanitization and context scoping on AI endpoints.
+- **Zero Committed Secrets**: Secrets managed strictly via ignored `.env` configuration files.
+
+---
+
+## 💳 Razorpay Test Mode
+
+> [!NOTE]
+> **Razorpay is configured strictly in TEST MODE (`rzp_test_...`) for hackathon presentation and judge demonstrations.**
+> Real money is never charged during testing or demonstration.
+
+---
+
+## 🎙️ Voice & AI Provider Configuration
+
+- **AI Assistant**: Powered by Groq LLM API (`GROQ_API_KEY`) with deterministic fallbacks when API is unreachable.
+- **Voice IVR**: Configured with Twilio integration (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`) with an interactive in-browser voice simulator (`/dev/voice-demo`) for hackathon demonstration.
+
+---
+
+## 🌐 Deployment
+
+- **Frontend**: Standard Next.js deployment on Vercel or Node.js server.
+- **Backend**: FastAPI containerized deployment on Railway / Render / AWS App Runner.
+- **Database**: Managed Supabase Cloud PostgreSQL.
+
+---
+
+## ⚠️ Limitations
+
+- **Telephony Provider**: Live Twilio phone numbers require active carrier webhooks and regulatory verification in India.
+- **Test Mode Payments**: Payments use Razorpay Test Mode keys for evaluation purposes.
+- **Browser Camera Access**: Doorstep photo proof capture requires browser camera permission or file upload fallback.
+
+---
+
+## 🔮 Future Roadmap
+
+- **WhatsApp Bot Integration**: Direct contribution receipts and auction notifications via WhatsApp Business API.
+- **Offline Agent Sync**: Offline PWA storage for CashBridge agents operating in remote areas with low connectivity.
+- **Official Credit Bureau Export**: API connectors for exporting ChitTrust scores to formal credit bureaus (CIBIL/Experian).
 
 ---
 
 ## ⚖️ Legal & Compliance Disclaimer
 
 > [!IMPORTANT]
-> **Hackathon MVP Notice**: ChitTrust + CashBridge is a technology platform prototype for transparent community savings group management. Actual chit fund or committee operations must comply with applicable Indian laws, regulations, and registration requirements under the **Chit Funds Act, 1982**.
+> **Hackathon MVP Notice**: ChitTrust + CashBridge is a technology platform prototype for transparent community savings group management. Actual chit fund or committee operations must comply with applicable Indian laws under the **Chit Funds Act, 1982**.
