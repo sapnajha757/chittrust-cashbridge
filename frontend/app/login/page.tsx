@@ -1,18 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Shield, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 import { validateIndianPhone } from '@/lib/phone';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function LoginPage() {
-  const router = useRouter();
+  const { user } = useAuth();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Auto-redirect to dashboard if user is already authenticated
+  useEffect(() => {
+    if (user || (typeof document !== 'undefined' && document.cookie.includes('chittrust_demo_session=true'))) {
+      window.location.href = '/dashboard';
+    }
+  }, [user]);
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,16 +45,13 @@ export default function LoginPage() {
 
       if (error) {
         console.warn('Supabase SMS OTP trigger notice:', error.message);
-        // Instantly proceed to verify OTP with test mode (Demo OTP: 123456)
-        router.push(`/verify-otp?phone=${encodeURIComponent(validation.formatted)}&demo=true`);
-        return;
       }
 
-      // Success -> Redirect to verify OTP page
-      router.push(`/verify-otp?phone=${encodeURIComponent(validation.formatted)}&demo=true`);
+      // Hard navigation to verify OTP page to avoid JS chunk 404 router issues
+      window.location.href = `/verify-otp?phone=${encodeURIComponent(validation.formatted)}&demo=true`;
     } catch (err: unknown) {
       console.error('Unexpected error sending OTP:', err);
-      router.push(`/verify-otp?phone=${encodeURIComponent(validation.formatted || '+919876543210')}&demo=true`);
+      window.location.href = `/verify-otp?phone=${encodeURIComponent(validation.formatted || '+919876543210')}&demo=true`;
     }
   };
 

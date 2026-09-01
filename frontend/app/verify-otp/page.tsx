@@ -87,9 +87,7 @@ function VerifyOTPContent() {
       // If demo mode or test OTP '123456', route seamlessly for testing
       if (isDemo || token === '123456') {
         await refreshProfile();
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 400);
+        window.location.href = '/dashboard';
         return;
       }
 
@@ -104,9 +102,7 @@ function VerifyOTPContent() {
         console.warn('Supabase OTP verification error:', error.message);
         // Seamless fallback for demo testing if phone provider isn't enabled in Supabase dashboard
         await refreshProfile();
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 400);
+        window.location.href = '/dashboard';
         return;
       }
 
@@ -115,17 +111,17 @@ function VerifyOTPContent() {
         const profile = await fetchUserProfile(userId);
         await refreshProfile();
         if (profile) {
-          router.push('/dashboard');
+          window.location.href = '/dashboard';
         } else {
-          router.push('/onboarding');
+          window.location.href = '/onboarding';
         }
       } else {
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
       }
     } catch (err: unknown) {
       console.error('OTP verification exception:', err);
       document.cookie = 'chittrust_demo_session=true; path=/; max-age=86400';
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     }
   };
 
