@@ -12,19 +12,18 @@ export default function DashboardRootPage() {
   useEffect(() => {
     if (loading) return;
 
-    if (!user) {
+    const hasDemoCookie = typeof document !== 'undefined' && document.cookie.includes('chittrust_demo_session');
+
+    if (!user && !profile && !hasDemoCookie) {
       router.push('/login');
       return;
     }
 
-    if (!profile) {
-      router.push('/onboarding');
-      return;
-    }
+    const currentRole = profile?.role || 'organizer';
 
-    if (profile.role === 'organizer') {
+    if (currentRole === 'organizer') {
       router.push('/dashboard/organizer');
-    } else if (profile.role === 'agent') {
+    } else if (currentRole === 'agent') {
       router.push('/dashboard/agent');
     } else {
       router.push('/dashboard/member');

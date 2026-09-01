@@ -5,6 +5,17 @@ import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase, fetchUserProfile, fetchUserTrustScore } from '@/lib/supabase';
 import { User, TrustScore } from '@/types';
 
+const DEMO_SUPABASE_USER: SupabaseUser = {
+  id: '00000000-0000-0000-0000-000000000001',
+  app_metadata: { provider: 'phone' },
+  user_metadata: { name: 'Sunita Sharma (Demo User)' },
+  aud: 'authenticated',
+  created_at: new Date().toISOString(),
+  phone: '+919876543210',
+  role: 'authenticated',
+  updated_at: new Date().toISOString(),
+} as unknown as SupabaseUser;
+
 const DEMO_USER: User = {
   id: '00000000-0000-0000-0000-000000000001',
   name: 'Sunita Sharma (Demo User)',
@@ -68,9 +79,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshProfile = useCallback(async () => {
-    if (user?.id) {
+    if (user?.id && user.id !== DEMO_USER.id) {
       await loadUserData(user.id);
     } else {
+      setUser(DEMO_SUPABASE_USER);
       setProfile(DEMO_USER);
       setTrustScore(DEMO_TRUST_SCORE);
     }
@@ -83,11 +95,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 1. Fetch initial session
     supabase.auth.getSession().then(({ data: { session: initSession } }) => {
       setSession(initSession);
-      setUser(initSession?.user ?? null);
       if (initSession?.user?.id) {
+        setUser(initSession.user);
         loadUserData(initSession.user.id).finally(() => setLoading(false));
       } else {
         if (hasDemoCookie) {
+          setUser(DEMO_SUPABASE_USER);
           setProfile(DEMO_USER);
           setTrustScore(DEMO_TRUST_SCORE);
         }
@@ -95,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }).catch(() => {
       if (hasDemoCookie) {
+        setUser(DEMO_SUPABASE_USER);
         setProfile(DEMO_USER);
         setTrustScore(DEMO_TRUST_SCORE);
       }
