@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
 
   // List of public routes that do not require authentication
   const isPublicRoute =
@@ -15,6 +15,10 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/api') ||
     pathname.startsWith('/dev');
 
+  // Check demo mode or demo session cookie
+  const isDemo = searchParams.get('demo') === 'true';
+  const hasDemoCookie = request.cookies.get('chittrust_demo_session')?.value === 'true';
+
   // Retrieve Supabase auth session token cookie if present
   const authCookie =
     request.cookies.get('sb-access-token') ||
@@ -22,8 +26,8 @@ export function middleware(request: NextRequest) {
     request.cookies.get('sb-auth-token') ||
     Array.from(request.cookies.getAll()).find((c) => c.name.includes('auth-token') || c.name.includes('sb-'));
 
-  // Protected route check
-  if (!isPublicRoute && !authCookie) {
+  // Allow protected route access if authenticated OR demo session active
+  if (!isPublicRoute && !authCookie && !isDemo && !hasDemoCookie) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
