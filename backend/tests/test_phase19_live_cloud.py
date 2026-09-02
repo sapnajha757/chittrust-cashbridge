@@ -13,7 +13,6 @@ from app.services.auction_service import auction_service
 from app.services.risk_engine import risk_engine, EXPLICIT_RISK_RULES
 from app.services.ai.assistant import ai_assistant_service
 from app.services.ai.providers import get_ai_provider, GroqProvider
-from app.auth.deps import is_demo_fallback_allowed
 
 client = TestClient(app)
 
@@ -43,22 +42,11 @@ def test_01_supabase_cloud_schema_21_tables_and_rls(supabase_remote):
 
 def test_02_production_demo_isolation_guard():
     """
-    Verify production mode (ENVIRONMENT='production') strictly disables demo fallback.
+    Verify missing token strictly yields 401 Unauthorized, never a demo profile.
     """
-    original_env = settings.ENVIRONMENT
-    original_demo = settings.DEMO_MODE
-    try:
-        settings.ENVIRONMENT = "production"
-        settings.DEMO_MODE = False
-        assert is_demo_fallback_allowed() is False, "Demo fallback must be strictly False in production mode"
-
-        # Missing token in production must yield 401 Unauthorized, never a demo profile
-        response = client.get("/api/v1/groups")
-        assert response.status_code == 401
-        assert "Authentication credentials were not provided" in response.json().get("detail", "")
-    finally:
-        settings.ENVIRONMENT = original_env
-        settings.DEMO_MODE = original_demo
+    response = client.get("/api/v1/groups")
+    assert response.status_code == 401
+    assert "not provided" in response.json().get("detail", "").lower() or "unauthorized" in response.json().get("detail", "").lower()
 
 
 def test_03_real_supabase_auth_and_role_guards():

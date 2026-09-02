@@ -7,7 +7,6 @@ from app.services.voice.response_service import voice_response_service
 from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.db.supabase import get_supabase_client
-from app.auth.deps import DEMO_PROFILES
 
 logger = logging.getLogger("chittrust.voice.telephony")
 router = APIRouter()

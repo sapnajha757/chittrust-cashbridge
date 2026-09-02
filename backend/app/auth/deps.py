@@ -10,46 +10,7 @@ logger = logging.getLogger("chittrust.auth")
 
 security = HTTPBearer(auto_error=False)
 
-# Default development fallback profile when auth is not provided in demo/dev mode
-DEMO_PROFILES: Dict[str, Dict[str, Any]] = {
-    "00000000-0000-0000-0000-000000000001": {
-        "id": "00000000-0000-0000-0000-000000000001",
-        "name": "Demo Organizer Vikram",
-        "phone_number": "+919900000001",
-        "user_type": "organizer",
-        "kyc_verified": True,
-    },
-    "00000000-0000-0000-0000-000000000002": {
-        "id": "00000000-0000-0000-0000-000000000002",
-        "name": "Suresh Patel (CashBridge Agent)",
-        "phone_number": "+919900000002",
-        "user_type": "agent",
-        "kyc_verified": True,
-    },
-    "00000000-0000-0000-0000-000000000003": {
-        "id": "00000000-0000-0000-0000-000000000003",
-        "name": "Demo Digital Member Priya",
-        "phone_number": "+919900000003",
-        "user_type": "member",
-        "kyc_verified": True,
-    },
-    "00000000-0000-0000-0000-000000000004": {
-        "id": "00000000-0000-0000-0000-000000000004",
-        "name": "Anil Verma (Cash Member)",
-        "phone_number": "+919900000004",
-        "user_type": "member",
-        "kyc_verified": True,
-    },
-}
 
-def is_demo_fallback_allowed() -> bool:
-    """
-    Demo mode fallback is allowed when DEMO_MODE is True, UNLESS running in production environment.
-    """
-    effective_env = (settings.APP_ENV or settings.ENVIRONMENT).lower()
-    if effective_env == "production":
-        return False
-    return bool(settings.DEMO_MODE) is True
 
 
 async def get_current_user(
