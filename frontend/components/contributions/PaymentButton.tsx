@@ -58,7 +58,7 @@ export function PaymentButton({
       // 2. Load Razorpay Checkout Script
       const scriptLoaded = await loadRazorpayScript();
 
-      if (scriptLoaded && (window as any).Razorpay && !orderData.order_id.startsWith('order_demo_')) {
+      if (scriptLoaded && (window as any).Razorpay) {
         // Real Razorpay Checkout modal
         const options = {
           key: orderData.key_id,
@@ -92,7 +92,7 @@ export function PaymentButton({
                 paymentDate: new Date().toISOString(),
               });
             } else {
-              alert('Payment verification failed on server.');
+              alert('Payment signature verification failed on server.');
             }
             setLoading(false);
             onProcessingChange?.(false);
@@ -108,40 +108,11 @@ export function PaymentButton({
         const rzp = new (window as any).Razorpay(options);
         rzp.open();
       } else {
-        // Test Mode Simulation (Auto verify mock checkout)
-        setTimeout(async () => {
-          const mockPaymentId = `pay_demo_${Math.floor(100000 + Math.random() * 900000)}`;
-          const mockSignature = `sig_demo_${Math.floor(100000 + Math.random() * 900000)}`;
-
-          const verifyRes = await fetch('/api/v1/contributions/upi/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              membership_id: membershipId,
-              month_number: monthNumber,
-              razorpay_order_id: orderData.order_id,
-              razorpay_payment_id: mockPaymentId,
-              razorpay_signature: mockSignature,
-            }),
-          });
-
-          if (verifyRes.ok) {
-            onSuccess({
-              groupName,
-              monthNumber,
-              amount,
-              paymentMode: 'UPI',
-              transactionRef: mockPaymentId,
-              paymentDate: new Date().toISOString(),
-            });
-          }
-          setLoading(false);
-          onProcessingChange?.(false);
-        }, 1200);
+        throw new Error('Razorpay Checkout SDK failed to load.');
       }
     } catch (err: unknown) {
       console.error('Payment flow exception:', err);
-      alert('We could not initiate the payment. Please try again.');
+      alert('We could not initiate the payment gateway checkout. Please verify credentials and try again.');
       setLoading(false);
       onProcessingChange?.(false);
     }

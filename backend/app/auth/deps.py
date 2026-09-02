@@ -44,9 +44,13 @@ DEMO_PROFILES: Dict[str, Dict[str, Any]] = {
 
 def is_demo_fallback_allowed() -> bool:
     """
-    Demo mode fallback is allowed whenever DEMO_MODE is True.
+    Demo mode fallback is allowed when DEMO_MODE is True, UNLESS running in production environment.
     """
+    effective_env = (settings.APP_ENV or settings.ENVIRONMENT).lower()
+    if effective_env == "production":
+        return False
     return bool(settings.DEMO_MODE) is True
+
 
 async def get_current_user(
     request: Request,
@@ -115,10 +119,7 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-    # Missing credentials: Check if explicit development demo fallback is allowed
-    if is_demo_fallback_allowed():
-        return DEMO_PROFILES["00000000-0000-0000-0000-000000000001"]
-
+    # Missing credentials: Strictly reject unauthenticated requests
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authentication credentials were not provided.",

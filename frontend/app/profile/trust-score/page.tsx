@@ -49,44 +49,14 @@ export default function TrustScorePortalPage() {
           const hData = await historyRes.json();
           setTimelineEvents(hData);
         } else {
-          // Demo fallback matching 785 Gold Tier score
-          setTimelineEvents([
-            {
-              id: 'te1',
-              month_number: 16,
-              payment_mode: 'upi',
-              event_type: 'on_time',
-              points: 5,
-              score_after: 785,
-              reason: 'On-time contribution (UPI) for Month 16 (+5)',
-              created_at: new Date().toISOString(),
-            },
-            {
-              id: 'te2',
-              month_number: 15,
-              payment_mode: 'cash',
-              event_type: 'on_time',
-              points: 5,
-              score_after: 780,
-              reason: 'Doorstep Cash Verified Contribution for Month 15 (+5)',
-              created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
-            },
-          ]);
+          setTimelineEvents([]);
         }
 
         if (breakdownRes.ok) {
           const bData = await breakdownRes.json();
           setBreakdownItems(bData.breakdown_items || []);
         } else {
-          // Demo fallback matching 785 Gold Tier score
-          setBreakdownItems([
-            { label: 'Base Starting Score', count: 1, points_per_unit: 100, total_points: 100 },
-            { label: 'On-Time Contributions (12 UPI + 4 Doorstep Cash)', count: 16, points_per_unit: 5, total_points: 80 },
-            { label: 'Late Contributions (≤ 7 days)', count: 0, points_per_unit: -5, total_points: 0 },
-            { label: 'Late Contributions (> 7 days)', count: 0, points_per_unit: -10, total_points: 0 },
-            { label: 'Missed Payments', count: 0, points_per_unit: -20, total_points: 0 },
-            { label: '3-Month Consistency Streak Bonuses', count: 4, points_per_unit: 10, total_points: 40 },
-          ]);
+          setBreakdownItems([]);
         }
       } catch (err) {
         console.error('Error loading trust score portal:', err);

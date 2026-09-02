@@ -33,28 +33,11 @@ export function AgentSelector({ regionFilter, selectedAgentId, onSelectAgent }: 
           const data = await res.json();
           setAgents(data);
         } else {
-          // Demo fallback
-          setAgents([
-            {
-              id: '00000000-0000-0000-0000-000000000002',
-              name: 'Suresh Patel (CashBridge Agent)',
-              phone_number: '+919900000002',
-              region: 'Jaipur Ward 12',
-              reputation_score: 98.5,
-              verified_status: 'verified',
-            },
-            {
-              id: '00000000-0000-0000-0000-000000000005',
-              name: 'Ramesh Kumar (Doorstep Collection)',
-              phone_number: '+919900000005',
-              region: 'Jaipur Ward 14',
-              reputation_score: 96.0,
-              verified_status: 'verified',
-            },
-          ]);
+          setAgents([]);
         }
       } catch (err) {
         console.error('Error fetching agents:', err);
+        setAgents([]);
       } finally {
         setLoading(false);
       }

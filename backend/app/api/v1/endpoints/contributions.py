@@ -55,6 +55,15 @@ async def get_membership_contribution_history(
     """
     Retrieves complete contribution payment history for a member.
     """
+    from app.db.supabase import get_supabase_client
+    client = get_supabase_client()
+    if client:
+        try:
+            res = client.table("contributions").select("*").eq("membership_id", membership_id).execute()
+            if res.data is not None:
+                return res.data
+        except Exception as err:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(err)}")
     return [c for c in DEMO_CONTRIBUTIONS if c["membership_id"] == membership_id]
 
 
@@ -66,12 +75,21 @@ async def get_current_month_contribution(
     """
     Retrieves current month contribution payment status for a member.
     """
+    from app.db.supabase import get_supabase_client
+    client = get_supabase_client()
+    if client:
+        try:
+            res = client.table("contributions").select("*").eq("membership_id", membership_id).order("month_number", desc=True).limit(1).execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]
+        except Exception as err:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(err)}")
+
     contrib = next(
         (c for c in DEMO_CONTRIBUTIONS if c["membership_id"] == membership_id and c["month_number"] == 2),
         None,
     )
     if not contrib:
-        # Return default pending contribution for month 2
         now_str = datetime.utcnow().isoformat()
         return {
             "id": "c2222222-2222-2222-2222-222222222222",
@@ -97,16 +115,31 @@ async def get_group_contribution_summary(
     """
     Returns monthly collection summary for organizers (expected vs collected vs pending).
     """
-    group_contribs = [c for c in DEMO_CONTRIBUTIONS if c.get("group_id") == group_id]
-    collected = sum(c["amount"] for c in group_contribs if c["payment_status"] == "successful")
-    pending = sum(c["amount"] for c in group_contribs if c["payment_status"] == "pending")
+    from app.db.supabase import get_supabase_client
+    client = get_supabase_client()
+    group_contribs = []
+
+    if client:
+        try:
+            res = client.table("contributions").select("*").eq("group_id", group_id).execute()
+            if res.data is not None:
+                group_contribs = res.data
+        except Exception as err:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database query error: {str(err)}")
+
+    if not group_contribs:
+        group_contribs = [c for c in DEMO_CONTRIBUTIONS if c.get("group_id") == group_id]
+
+    collected = sum(float(c.get("amount", 0)) for c in group_contribs if c.get("payment_status") == "successful")
+    pending = sum(float(c.get("amount", 0)) for c in group_contribs if c.get("payment_status") == "pending")
 
     return {
         "group_id": group_id,
         "total_expected_amount": 30000.0,
         "collected_amount": collected,
-        "pending_amount": 30000.0 - collected,
-        "successful_count": len([c for c in group_contribs if c["payment_status"] == "successful"]),
-        "pending_count": len([c for c in group_contribs if c["payment_status"] == "pending"]),
-        "failed_count": len([c for c in group_contribs if c["payment_status"] == "failed"]),
+        "pending_amount": max(0.0, 30000.0 - collected),
+        "successful_count": len([c for c in group_contribs if c.get("payment_status") == "successful"]),
+        "pending_count": len([c for c in group_contribs if c.get("payment_status") == "pending"]),
+        "failed_count": len([c for c in group_contribs if c.get("payment_status") == "failed"]),
     }
+

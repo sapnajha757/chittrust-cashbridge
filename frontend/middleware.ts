@@ -2,18 +2,16 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const { pathname, searchParams } = request.nextUrl;
+  const { pathname } = request.nextUrl;
 
-  // Retrieve Supabase auth session token cookie or demo session cookie
-  const isDemoUrl = searchParams.get('demo') === 'true' || request.headers.get('referer')?.includes('demo=true');
-  const hasDemoCookie = request.cookies.has('chittrust_demo_session');
+  // Retrieve Supabase auth session token cookie
   const authCookie =
     request.cookies.get('sb-access-token') ||
     request.cookies.get('supabase-auth-token') ||
     request.cookies.get('sb-auth-token') ||
     Array.from(request.cookies.getAll()).find((c) => c.name.includes('auth') || c.name.includes('sb-'));
 
-  const isAuthenticated = !!(authCookie || hasDemoCookie || isDemoUrl);
+  const isAuthenticated = !!authCookie;
 
   // If authenticated user visits /login, redirect to /dashboard
   if (pathname === '/login' && isAuthenticated) {
@@ -36,16 +34,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow protected route access; set demo cookie if not authenticated
-  const response = NextResponse.next();
+  // Enforce authentication for protected routes
   if (!isAuthenticated) {
-    response.cookies.set('chittrust_demo_session', 'true', { path: '/', maxAge: 86400 });
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
+
 

@@ -134,9 +134,9 @@ def test_organizer_modifying_another_organizer_group_forbidden():
         assert response.status_code == 403, f"Expected 403 Forbidden, got {response.status_code}"
 
 
-def test_development_mode_demo_fallback_works_when_enabled():
-    """Requirement 18L & 19: APP_ENV=development + DEMO_MODE=true allows demo identity."""
-    with patch.object(settings, "ENVIRONMENT", "development"), patch.object(settings, "DEMO_MODE", True):
-        response = client.get("/api/v1/users/me")
-        assert response.status_code == 200
-        assert response.json()["id"] == "00000000-0000-0000-0000-000000000001"
+def test_unauthenticated_request_returns_401():
+    """Unauthenticated requests unconditionally return 401 Unauthorized."""
+    response = client.get("/api/v1/users/me")
+    assert response.status_code == 401
+    assert "not provided" in response.json()["detail"].lower()
+

@@ -16,7 +16,7 @@ export default function LoginPage() {
 
   // Auto-redirect to dashboard if user is already authenticated
   useEffect(() => {
-    if (user || (typeof document !== 'undefined' && document.cookie.includes('chittrust_demo_session=true'))) {
+    if (user) {
       window.location.href = '/dashboard';
     }
   }, [user]);
@@ -34,24 +34,22 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // Set demo session cookie for prototype testing
-      if (typeof document !== 'undefined') {
-        document.cookie = 'chittrust_demo_session=true; path=/; max-age=86400';
-      }
-
       const { error } = await supabase.auth.signInWithOtp({
         phone: validation.formatted,
       });
 
       if (error) {
-        console.warn('Supabase SMS OTP trigger notice:', error.message);
+        console.error('Supabase SMS OTP error:', error.message);
+        setErrorMessage(error.message || 'Failed to send OTP. Please try again.');
+        setLoading(false);
+        return;
       }
 
-      // Hard navigation to verify OTP page to avoid JS chunk 404 router issues
-      window.location.href = `/verify-otp?phone=${encodeURIComponent(validation.formatted)}&demo=true`;
+      window.location.href = `/verify-otp?phone=${encodeURIComponent(validation.formatted)}`;
     } catch (err: unknown) {
       console.error('Unexpected error sending OTP:', err);
-      window.location.href = `/verify-otp?phone=${encodeURIComponent(validation.formatted || '+919876543210')}&demo=true`;
+      setErrorMessage('An unexpected error occurred. Please try again.');
+      setLoading(false);
     }
   };
 

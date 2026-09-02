@@ -24,20 +24,11 @@ export function NotificationBell() {
           const data = await res.json();
           setNotifications(data);
         } else {
-          // Demo fallback
-          setNotifications([
-            {
-              id: 'n1',
-              type: 'cash_receipt',
-              title: 'Cash Payment Recorded ✓',
-              message: '₹2,500 cash payment received for Month 1. Recorded by Agent Suresh Patel.',
-              read: false,
-              created_at: new Date().toISOString(),
-            },
-          ]);
+          setNotifications([]);
         }
       } catch (err) {
         console.error('Error fetching notifications:', err);
+        setNotifications([]);
       }
     }
 

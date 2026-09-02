@@ -15,10 +15,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 bg-slate-900 text-white border-b border-slate-800 shadow-md">
-      {/* Demo Mode Banner Indicator */}
-      <div className="bg-amber-500/20 text-amber-300 border-b border-amber-500/30 text-[10px] font-extrabold uppercase py-0.5 text-center tracking-wider">
-        <span>⚡ DEMO MODE ACTIVE • Prototype Financial Simulation</span>
-      </div>
+
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">

@@ -17,7 +17,7 @@ function VerifyOTPContent() {
 
   const { refreshProfile } = useAuth();
 
-  const [otp, setOtp] = useState<string[]>(['1', '2', '3', '4', '5', '6']);
+  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(30);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -81,16 +81,6 @@ function VerifyOTPContent() {
     setLoading(true);
 
     try {
-      // Set demo session cookie for middleware protection
-      document.cookie = 'chittrust_demo_session=true; path=/; max-age=86400';
-
-      // If demo mode or test OTP '123456', route seamlessly for testing
-      if (isDemo || token === '123456') {
-        await refreshProfile();
-        window.location.href = '/dashboard';
-        return;
-      }
-
       // Supabase Auth verification for live SMS
       const { data, error } = await supabase.auth.verifyOtp({
         phone: phone,
@@ -99,10 +89,8 @@ function VerifyOTPContent() {
       });
 
       if (error) {
-        console.warn('Supabase OTP verification error:', error.message);
-        // Seamless fallback for demo testing if phone provider isn't enabled in Supabase dashboard
-        await refreshProfile();
-        window.location.href = '/dashboard';
+        setErrorMessage(error.message || 'Invalid or expired OTP code.');
+        setLoading(false);
         return;
       }
 
@@ -120,8 +108,8 @@ function VerifyOTPContent() {
       }
     } catch (err: unknown) {
       console.error('OTP verification exception:', err);
-      document.cookie = 'chittrust_demo_session=true; path=/; max-age=86400';
-      window.location.href = '/dashboard';
+      setErrorMessage('Failed to verify OTP code. Please try again.');
+      setLoading(false);
     }
   };
 
@@ -133,7 +121,7 @@ function VerifyOTPContent() {
 
     const { error } = await supabase.auth.signInWithOtp({ phone });
     if (error) {
-      setErrorMessage('Resent demo OTP (123456). Click Verify & Continue.');
+      setErrorMessage(error.message || 'Failed to resend OTP code.');
     }
   };
 

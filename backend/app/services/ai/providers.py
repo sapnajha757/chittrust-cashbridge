@@ -3,6 +3,7 @@ import logging
 import requests
 from typing import Dict, Any, Optional
 from app.core.config import settings
+from app.core.exceptions import APIException
 
 logger = logging.getLogger("chittrust.ai.providers")
 
@@ -10,52 +11,17 @@ class BaseAIProvider:
     def generate_explanation(self, prompt: str, context: Dict[str, Any]) -> Dict[str, Any]:
         raise NotImplementedError
 
-class MockAIProvider(BaseAIProvider):
-    """
-    Deterministic fallback AI provider.
-    Ensures 100% reliable fallback evaluation & zero external API failure dependency.
-    """
-    def generate_explanation(self, prompt: str, context: Dict[str, Any]) -> Dict[str, Any]:
-        risk_type = context.get("risk_type", "AGENT_ACTIVITY_SPIKE")
-
-        if risk_type == "AGENT_ACTIVITY_SPIKE":
-            return {
-                "summary": "Agent doorstep cash entry volume is 2.8x higher than recent daily baseline.",
-                "evidence": [
-                    "Normal daily entries: 18-25 entries/day",
-                    "Today's cash entries: 61 entries",
-                    "Baseline deviation: +177%",
-                ],
-                "recommended_action": "Inspect recent cash entries and verify photo proof attachments.",
-                "confidence": 0.86,
-            }
-        elif risk_type == "POSSIBLE_DUPLICATE":
-            return {
-                "summary": "Duplicate contribution entry detected for same member and month.",
-                "evidence": [
-                    "Member: Anil Verma",
-                    "Month 2 Contribution ₹2,500 recorded twice within 10 minutes",
-                ],
-                "recommended_action": "Verify bank statement or CashBridge agent receipt to dismiss duplicate.",
-                "confidence": 0.92,
-            }
-
-        return {
-            "summary": f"Operational anomaly signal ({risk_type}) requires verification.",
-            "evidence": ["Structured database pattern deviation detected."],
-            "recommended_action": "Review evidence timeline with committee organizer.",
-            "confidence": 0.85,
-        }
-
 class GroqProvider(BaseAIProvider):
     """
     Real Groq LLM API provider using llama-3.3-70b-versatile or llama3-8b-8192.
     Strictly uses database factual context to generate natural language explanations.
+    Fails loudly with HTTP 503 if GROQ_API_KEY is missing or Groq API call fails.
     """
     def generate_explanation(self, prompt: str, context: Dict[str, Any]) -> Dict[str, Any]:
         api_key = settings.GROQ_API_KEY
-        if not api_key or api_key.startswith("gsk_placeholder"):
-            return MockAIProvider().generate_explanation(prompt, context)
+        if not api_key or "placeholder" in api_key:
+            logger.error("GROQ_API_KEY is missing or unconfigured.")
+            raise APIException("AI intelligence service unavailable: GROQ_API_KEY is not configured.", status_code=503)
 
         try:
             url = "https://api.groq.com/openai/v1/chat/completions"
@@ -71,31 +37,47 @@ class GroqProvider(BaseAIProvider):
             )
             user_msg = f"Prompt: {prompt}\nContext: {json.dumps(context)}"
 
-            payload = {
-                "model": "llama-3.3-70b-versatile",
-                "messages": [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                "temperature": 0.2,
-                "response_format": {"type": "json_object"}
-            }
+            models_to_try = [
+                "qwen/qwen3.6-27b",
+                "llama-3.3-70b-versatile",
+                "llama3-8b-8192",
+                "openai/gpt-oss-20b"
+            ]
 
-            response = requests.post(url, headers=headers, json=payload, timeout=8)
-            if response.status_code == 200:
-                data = response.json()
-                content = data["choices"][0]["message"]["content"]
-                parsed = json.loads(content)
-                parsed["confidence"] = parsed.get("confidence", 0.90)
-                return parsed
-            else:
-                logger.warning(f"Groq API returned status {response.status_code}: {response.text}")
+            last_error = None
+            for model_name in models_to_try:
+                payload = {
+                    "model": model_name,
+                    "messages": [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    "temperature": 0.2,
+                    "response_format": {"type": "json_object"}
+                }
+
+                response = requests.post(url, headers=headers, json=payload, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    content = data["choices"][0]["message"]["content"]
+                    parsed = json.loads(content)
+                    parsed["confidence"] = parsed.get("confidence", 0.90)
+                    return parsed
+                elif response.status_code == 404:
+                    last_error = response.text
+                    continue
+                else:
+                    logger.error(f"Groq API returned HTTP {response.status_code}: {response.text}")
+                    raise APIException(f"AI intelligence API error: HTTP {response.status_code}", status_code=503)
+
+            logger.error(f"All Groq models failed: {last_error}")
+            raise APIException("AI intelligence API error: All configured models failed.", status_code=503)
+        except APIException:
+            raise
         except Exception as err:
             logger.error(f"GroqProvider execution failed: {err}")
-
-        return MockAIProvider().generate_explanation(prompt, context)
+            raise APIException(f"AI intelligence service failure: {str(err)}", status_code=503)
 
 def get_ai_provider() -> BaseAIProvider:
-    if settings.GROQ_API_KEY and not settings.GROQ_API_KEY.startswith("gsk_placeholder"):
-        return GroqProvider()
-    return MockAIProvider()
+    return GroqProvider()
+

@@ -33,24 +33,17 @@ export function AskChitTrustWidget() {
 
       if (res.ok) {
         const data = await res.json();
-        setMessages((prev) => [...prev, { sender: 'assistant', text: data.reply_text }]);
+        setMessages((prev) => [...prev, { sender: 'assistant', text: data.reply_text || data.summary }]);
       } else {
-        const lowerMsg = userMsg.toLowerCase();
-        let fallbackReply = 'Aapka Trust Score 785 (Gold Tier - High Reliability) hai. Unique Equal Credit System ke mutabiq har timely UPI aur doorstep cash contribution par aapko +5 points credit milte hain.';
-
-        if (lowerMsg.includes('kyun') || lowerMsg.includes('badha') || lowerMsg.includes('increase')) {
-          fallbackReply = 'Aapka Trust Score 785 (Gold Tier) isliye badha kyunki aapne pichli 12 UPI payments aur 4 doorstep cash payments bina kisi delay ke complete ki hain. Har on-time contribution par +5 points record hue hain.';
-        } else if (lowerMsg.includes('auction') || lowerMsg.includes('bid')) {
-          fallbackReply = 'Aapka Trust Score 785 (Gold Tier) hone ki wajah se aap agle monthly chit auction me bidding ke liye 100% eligible hain!';
-        }
-
-        setMessages((prev) => [...prev, { sender: 'assistant', text: fallbackReply }]);
+        const errData = await res.json().catch(() => ({}));
+        const errMsg = errData.detail || 'AI Assistant service is currently unavailable. Please verify API configuration.';
+        setMessages((prev) => [...prev, { sender: 'assistant', text: `⚠️ ${errMsg}` }]);
       }
     } catch (err) {
       console.error('Error sending AI chat request:', err);
       setMessages((prev) => [
         ...prev,
-        { sender: 'assistant', text: 'Aapka Trust Score 785 Gold Tier hai. Har timely cash aur UPI payment par +5 points credit system lagu hai.' },
+        { sender: 'assistant', text: '⚠️ AI Assistant service is currently unavailable. Please try again later.' },
       ]);
     } finally {
       setLoading(false);

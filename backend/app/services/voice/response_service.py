@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional
 from app.services.trust_score_service import trust_score_service
 from app.services.contribution_service import DEMO_CONTRIBUTIONS
 from app.services.payout_service import payout_service
+from app.db.supabase import get_supabase_client
 
 logger = logging.getLogger("chittrust.voice.response")
 
@@ -36,10 +37,27 @@ class VoiceResponseService:
 
     @classmethod
     def build_auction_result_response(cls, language: str = "hi") -> Dict[str, Any]:
+        client = get_supabase_client()
+        winner_name = "Member"
+        payout_amount = "8,500"
+
+        if client:
+            try:
+                res = client.table("auctions").select("*").eq("status", "completed").order("created_at", desc=True).limit(1).execute()
+                if res.data and len(res.data) > 0:
+                    payout_amount = f"{int(res.data[0].get('winning_bid_amount', 8500)):,}"
+                    winner_id = res.data[0].get("winner_user_id")
+                    if winner_id:
+                        w_res = client.table("profiles").select("name").eq("id", winner_id).execute()
+                        if w_res.data and len(w_res.data) > 0:
+                            winner_name = w_res.data[0].get("name", "Member")
+            except Exception as err:
+                logger.warning(f"Voice auction lookup notice: {err}")
+
         if language == "hi":
-            prompt = "Is mahine ka auction complete ho gaya hai. Payout amount ₹8,500 hai aur winner Anil Verma hain."
+            prompt = f"Is mahine ka auction complete ho gaya hai. Payout amount ₹{payout_amount} hai aur winner {winner_name} hain."
         else:
-            prompt = "This month's auction is complete. Payout amount is ₹8,500 and the winner is Anil Verma."
+            prompt = f"This month's auction is complete. Payout amount is ₹{payout_amount} and the winner is {winner_name}."
 
         return {
             "intent": "AUCTION_RESULT",
@@ -50,13 +68,13 @@ class VoiceResponseService:
     @classmethod
     def build_payout_status_response(cls, membership_id: str, language: str = "hi") -> Dict[str, Any]:
         payout = payout_service.get_payout("p1111111-1111-1111-1111-111111111111")
-        amount = int(payout["amount"])
-        status_text = payout["status"]
+        amount = int(payout.get("amount", 0))
+        status_text = payout.get("status", "pending")
 
         if language == "hi":
-            prompt = f"Aapka ₹{amount} ka payout status {status_text} hai. Payment mode {payout['mode']} hai."
+            prompt = f"Aapka ₹{amount} ka payout status {status_text} hai. Payment mode {payout.get('mode', 'bank_transfer')} hai."
         else:
-            prompt = f"Your payout of ₹{amount} is currently {status_text} via {payout['mode']}."
+            prompt = f"Your payout of ₹{amount} is currently {status_text} via {payout.get('mode', 'bank_transfer')}."
 
         return {
             "intent": "PAYOUT_STATUS",
@@ -66,7 +84,19 @@ class VoiceResponseService:
 
     @classmethod
     def build_payment_status_response(cls, membership_id: str, language: str = "hi") -> Dict[str, Any]:
-        contrib = next((c for c in DEMO_CONTRIBUTIONS if c["membership_id"] == membership_id and c["payment_status"] == "successful"), None)
+        client = get_supabase_client()
+        contrib = None
+
+        if client:
+            try:
+                res = client.table("contributions").select("*").eq("membership_id", membership_id).eq("payment_status", "successful").order("month_number", desc=True).limit(1).execute()
+                if res.data and len(res.data) > 0:
+                    contrib = res.data[0]
+            except Exception as err:
+                logger.warning(f"Voice contribution lookup error: {err}")
+
+        if not contrib:
+            contrib = next((c for c in DEMO_CONTRIBUTIONS if c["membership_id"] == membership_id and c["payment_status"] == "successful"), None)
 
         if contrib:
             amount = int(contrib["amount"])
@@ -91,9 +121,22 @@ class VoiceResponseService:
 
     @classmethod
     def build_recent_payment_response(cls, membership_id: str, language: str = "hi") -> Dict[str, Any]:
-        contribs = [c for c in DEMO_CONTRIBUTIONS if c["membership_id"] == membership_id and c["payment_status"] == "successful"]
+        client = get_supabase_client()
+        contribs = []
+
+        if client:
+            try:
+                res = client.table("contributions").select("*").eq("membership_id", membership_id).eq("payment_status", "successful").order("created_at", desc=True).limit(5).execute()
+                if res.data is not None:
+                    contribs = res.data
+            except Exception as err:
+                logger.warning(f"Voice recent payment lookup error: {err}")
+
+        if not contribs:
+            contribs = [c for c in DEMO_CONTRIBUTIONS if c["membership_id"] == membership_id and c["payment_status"] == "successful"]
+
         if contribs:
-            recent = contribs[-1]
+            recent = contribs[0]
             amount = int(recent["amount"])
             mode = "cash" if recent.get("mode") == "cash" else "UPI"
 
@@ -114,3 +157,4 @@ class VoiceResponseService:
         }
 
 voice_response_service = VoiceResponseService()
+
