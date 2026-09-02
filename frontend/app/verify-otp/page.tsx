@@ -123,34 +123,13 @@ function VerifyOtpContent() {
         return;
       }
 
-      // 3. Resilient Real Supabase Auth fallback if email rate limit prevented email dispatch:
-      console.info('Triggering resilient Supabase Auth verification fallback for:', email);
-      const defaultPass = `ChitTrust#2026!${email.slice(0, 4)}`;
-
-      let authRes = await supabase.auth.signInWithPassword({
-        email: email,
-        password: defaultPass,
-      });
-
-      if (authRes.error) {
-        const signUpRes = await supabase.auth.signUp({
-          email: email,
-          password: defaultPass,
-        });
-
-        if (signUpRes.data?.session) {
-          await refreshProfile();
-          window.location.href = '/dashboard';
-          return;
-        }
-      } else if (authRes.data?.session) {
-        await refreshProfile();
-        window.location.href = '/dashboard';
+      // 3. Fallback check for session
+      if (verifyRes.error) {
+        console.warn('Supabase OTP verification returned:', verifyRes.error.message);
+        setErrorMessage(verifyRes.error.message || 'Invalid or expired 6-digit code. Click "Resend OTP" or check your latest email.');
+        setLoading(false);
         return;
       }
-
-      setErrorMessage(verifyRes.error?.message || 'Invalid verification code.');
-      setLoading(false);
     } catch (err: unknown) {
       console.error('OTP verification exception:', err);
       setErrorMessage('Failed to verify code. Please check your internet connection.');
