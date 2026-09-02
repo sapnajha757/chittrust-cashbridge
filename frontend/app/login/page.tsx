@@ -41,11 +41,18 @@ export default function LoginPage() {
       // Real Supabase Email OTP authentication request
       const { error } = await supabase.auth.signInWithOtp({
         email: normalizedEmail,
+        options: {
+          shouldCreateUser: true,
+        },
       });
 
       if (error) {
         console.error('Supabase Email OTP error:', error.message);
-        setErrorMessage(error.message || 'Failed to send verification code. Please try again.');
+        let userMsg = error.message || 'Failed to send verification code. Please try again.';
+        if (error.message?.includes('magic link email') || error.status === 500) {
+          userMsg = 'Email service rate limit reached or custom SMTP unconfigured. Please check your Supabase Email settings or wait 60 seconds.';
+        }
+        setErrorMessage(userMsg);
         setLoading(false);
         return;
       }

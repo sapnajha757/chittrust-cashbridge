@@ -80,21 +80,30 @@ function VerifyOTPContent() {
     setLoading(true);
 
     try {
-      // Real Supabase Auth verification for Email OTP
-      const { data, error } = await supabase.auth.verifyOtp({
+      // Primary Supabase Auth verification for 6-digit Email OTP
+      let verifyRes = await supabase.auth.verifyOtp({
         email: email,
         token: token,
         type: 'email',
       });
 
-      if (error) {
-        console.error('Supabase Email OTP verification error:', error.message);
-        setErrorMessage(error.message || 'Invalid or expired verification code.');
+      // Fallback verification type for new user signup OTPs
+      if (verifyRes.error) {
+        verifyRes = await supabase.auth.verifyOtp({
+          email: email,
+          token: token,
+          type: 'signup',
+        });
+      }
+
+      if (verifyRes.error) {
+        console.error('Supabase Email OTP verification error:', verifyRes.error.message);
+        setErrorMessage(verifyRes.error.message || 'Invalid or expired verification code.');
         setLoading(false);
         return;
       }
 
-      const userId = data?.user?.id;
+      const userId = verifyRes.data?.user?.id;
       if (userId) {
         const profile = await fetchUserProfile(userId);
         await refreshProfile();
@@ -119,9 +128,12 @@ function VerifyOTPContent() {
     setErrorMessage(null);
     setResendCooldown(30);
 
-    const { error } = await supabase.auth.signInWithOtp({ email });
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: true },
+    });
     if (error) {
-      setErrorMessage(error.message || 'Failed to resend email code.');
+      setErrorMessage(error.message || 'Failed to resend verification code.');
     }
   };
 
