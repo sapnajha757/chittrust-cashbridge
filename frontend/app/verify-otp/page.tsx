@@ -12,8 +12,7 @@ import { useAuth } from '@/hooks/use-auth';
 function VerifyOTPContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const phone = searchParams.get('phone') || '';
-  const isDemo = searchParams.get('demo') === 'true';
+  const email = searchParams.get('email') || searchParams.get('phone') || '';
 
   const { refreshProfile } = useAuth();
 
@@ -74,22 +73,23 @@ function VerifyOTPContent() {
 
     const token = otp.join('');
     if (token.length !== 6) {
-      setErrorMessage('Please enter the complete 6-digit OTP code.');
+      setErrorMessage('Please enter the complete 6-digit code sent to your email.');
       return;
     }
 
     setLoading(true);
 
     try {
-      // Supabase Auth verification for live SMS
+      // Real Supabase Auth verification for Email OTP
       const { data, error } = await supabase.auth.verifyOtp({
-        phone: phone,
+        email: email,
         token: token,
-        type: 'sms',
+        type: 'email',
       });
 
       if (error) {
-        setErrorMessage(error.message || 'Invalid or expired OTP code.');
+        console.error('Supabase Email OTP verification error:', error.message);
+        setErrorMessage(error.message || 'Invalid or expired verification code.');
         setLoading(false);
         return;
       }
@@ -108,20 +108,20 @@ function VerifyOTPContent() {
       }
     } catch (err: unknown) {
       console.error('OTP verification exception:', err);
-      setErrorMessage('Failed to verify OTP code. Please try again.');
+      setErrorMessage('Failed to verify code. Please check your internet connection.');
       setLoading(false);
     }
   };
 
   const handleResend = async () => {
-    if (resendCooldown > 0) return;
+    if (resendCooldown > 0 || !email) return;
 
     setErrorMessage(null);
     setResendCooldown(30);
 
-    const { error } = await supabase.auth.signInWithOtp({ phone });
+    const { error } = await supabase.auth.signInWithOtp({ email });
     if (error) {
-      setErrorMessage(error.message || 'Failed to resend OTP code.');
+      setErrorMessage(error.message || 'Failed to resend email code.');
     }
   };
 
@@ -132,7 +132,7 @@ function VerifyOTPContent() {
           href="/login"
           className="inline-flex items-center text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4 mr-1" /> Change Phone Number
+          <ArrowLeft className="w-4 h-4 mr-1" /> Change Email Address
         </Link>
       </div>
 
@@ -141,15 +141,10 @@ function VerifyOTPContent() {
           <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto mb-2">
             <ShieldCheck className="w-6 h-6" />
           </div>
-          <CardTitle className="text-xl font-extrabold text-slate-900">Verify Mobile Number</CardTitle>
+          <CardTitle className="text-xl font-extrabold text-slate-900">Verify Email Address</CardTitle>
           <p className="text-xs text-slate-600 mt-1">
-            Enter the 6-digit code sent to <span className="font-bold text-slate-900">{phone || '+91 Member'}</span>
+            Enter the 6-digit verification code sent to <span className="font-bold text-slate-900">{email || 'your email'}</span>
           </p>
-          {isDemo && (
-            <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[11px] font-bold">
-              Demo OTP: 123456 (Pre-filled)
-            </span>
-          )}
         </CardHeader>
 
         <CardContent>

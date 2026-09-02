@@ -3,14 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shield, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
-import { validateIndianPhone } from '@/lib/phone';
+import { Mail, ArrowRight, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/components/providers/auth-provider';
 
 export default function LoginPage() {
   const { user } = useAuth();
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -21,34 +20,41 @@ export default function LoginPage() {
     }
   }, [user]);
 
+  const validateEmail = (str: string) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(str.trim());
+  };
+
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    const validation = validateIndianPhone(phoneNumber);
-    if (!validation.valid) {
-      setErrorMessage(validation.error || 'Please enter a valid 10-digit mobile number.');
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!validateEmail(normalizedEmail)) {
+      setErrorMessage('Please enter a valid email address (e.g. user@example.com).');
       return;
     }
 
     setLoading(true);
 
     try {
+      // Real Supabase Email OTP authentication request
       const { error } = await supabase.auth.signInWithOtp({
-        phone: validation.formatted,
+        email: normalizedEmail,
       });
 
       if (error) {
-        console.error('Supabase SMS OTP error:', error.message);
-        setErrorMessage(error.message || 'Failed to send OTP. Please try again.');
+        console.error('Supabase Email OTP error:', error.message);
+        setErrorMessage(error.message || 'Failed to send verification code. Please try again.');
         setLoading(false);
         return;
       }
 
-      window.location.href = `/verify-otp?phone=${encodeURIComponent(validation.formatted)}`;
+      // Navigate to verification screen with normalized email
+      window.location.href = `/verify-otp?email=${encodeURIComponent(normalizedEmail)}`;
     } catch (err: unknown) {
-      console.error('Unexpected error sending OTP:', err);
-      setErrorMessage('An unexpected error occurred. Please try again.');
+      console.error('Unexpected error sending email OTP:', err);
+      setErrorMessage('An unexpected error occurred. Please check your network connection.');
       setLoading(false);
     }
   };
@@ -66,29 +72,27 @@ export default function LoginPage() {
       <Card className="shadow-lg border-slate-200">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2 text-slate-900">
-            <Shield className="w-5 h-5 text-emerald-600" /> Enter Mobile Number
+            <Mail className="w-5 h-5 text-emerald-600" /> Enter Email Address
           </CardTitle>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSendOTP} className="space-y-4">
             <div>
-              <label htmlFor="phone-input" className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Mobile Number
+              <label htmlFor="email-input" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Email Address
               </label>
               <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-sm font-semibold text-slate-500">
-                  +91
-                </span>
                 <input
-                  id="phone-input"
-                  type="tel"
-                  maxLength={10}
-                  placeholder="98765 43210"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                  className="w-full pl-14 pr-4 py-2.5 border border-slate-300 rounded-xl text-base font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none"
+                  id="email-input"
+                  type="email"
+                  placeholder="yourname@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-base font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none"
                   disabled={loading}
+                  autoComplete="email"
+                  required
                 />
               </div>
             </div>
@@ -102,12 +106,12 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              disabled={loading || phoneNumber.length !== 10}
-              className="w-full py-3 text-base font-bold rounded-xl"
+              disabled={loading || !email.trim()}
+              className="w-full py-3 text-base font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               {loading ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Sending OTP...
+                <span className="flex items-center gap-2 justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Sending Email OTP...
                 </span>
               ) : (
                 <span className="flex items-center justify-center gap-2">
@@ -118,11 +122,14 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 pt-4 border-t border-slate-100 text-center text-xs text-slate-500 space-y-1">
-            <p>🔒 100% Secure & Encrypted Login</p>
-            <p>Equal trust credit for UPI and cash members</p>
+            <p className="flex items-center justify-center gap-1 font-semibold text-slate-700">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" /> Real Supabase Auth Single Source of Truth
+            </p>
+            <p>Equal trust credit for UPI and doorstep cash members</p>
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+
