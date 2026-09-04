@@ -99,6 +99,39 @@ export default function LoginPage() {
     }
   };
 
+  const handleDemoLogin = async (demoEmail: string) => {
+    setLoading(true);
+    setErrorMessage(null);
+    const defaultPass = `ChitTrust#2026!${demoEmail.slice(0, 4)}`;
+    try {
+      let res = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: defaultPass,
+      });
+
+      if (res.data?.session) {
+        window.location.href = '/dashboard';
+        return;
+      }
+
+      if (res.error) {
+        let signUpRes = await supabase.auth.signUp({
+          email: demoEmail,
+          password: defaultPass,
+        });
+
+        if (signUpRes.data?.session) {
+          window.location.href = '/dashboard';
+          return;
+        }
+      }
+
+      window.location.href = `/verify-otp?email=${encodeURIComponent(demoEmail)}`;
+    } catch {
+      window.location.href = `/verify-otp?email=${encodeURIComponent(demoEmail)}`;
+    }
+  };
+
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -133,16 +166,21 @@ export default function LoginPage() {
           password: password,
         });
 
-        if (signUpRes.error) {
-          setErrorMessage(signUpRes.error.message || 'Authentication failed.');
-          setLoading(false);
-          return;
-        }
-
         if (signUpRes.data?.session) {
           window.location.href = '/dashboard';
           return;
         }
+
+        // If user is already registered in Supabase (e.g. created via OTP without password)
+        if (signUpRes.error?.message?.includes('already registered') || signUpRes.error?.message?.includes('already exists')) {
+          console.info('User registered. Redirecting to verification portal for:', normalizedEmail);
+          window.location.href = `/verify-otp?email=${encodeURIComponent(normalizedEmail)}`;
+          return;
+        }
+
+        setErrorMessage(signUpRes.error?.message || signInRes.error.message || 'Authentication failed.');
+        setLoading(false);
+        return;
       }
 
       window.location.href = `/verify-otp?email=${encodeURIComponent(normalizedEmail)}`;
@@ -318,6 +356,49 @@ export default function LoginPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Quick Demo Access Bar */}
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm text-center">
+        <p className="text-xs font-bold text-slate-700">🚀 Quick 1-Click Demo Login (Instant Access)</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleDemoLogin('organizer@chittrust.org')}
+            className="text-xs font-bold bg-white hover:bg-emerald-50 hover:border-emerald-300 text-slate-800"
+          >
+            🏢 Organizer
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleDemoLogin('agent@chittrust.org')}
+            className="text-xs font-bold bg-white hover:bg-amber-50 hover:border-amber-300 text-slate-800"
+          >
+            🛵 CashBridge Agent
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleDemoLogin('priya@chittrust.org')}
+            className="text-xs font-bold bg-white hover:bg-blue-50 hover:border-blue-300 text-slate-800"
+          >
+            💳 Digital Member
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleDemoLogin('anil@chittrust.org')}
+            className="text-xs font-bold bg-white hover:bg-purple-50 hover:border-purple-300 text-slate-800"
+          >
+            💵 Cash Member
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
