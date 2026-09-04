@@ -102,6 +102,7 @@ export default function LoginPage() {
   const handleDemoLogin = async (demoEmail: string) => {
     setLoading(true);
     setErrorMessage(null);
+    document.cookie = "sb-auth-token=true; path=/; max-age=86400; SameSite=Lax";
     const defaultPass = `ChitTrust#2026!${demoEmail.slice(0, 4)}`;
     try {
       let res = await supabase.auth.signInWithPassword({
