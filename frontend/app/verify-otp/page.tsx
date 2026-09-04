@@ -131,20 +131,26 @@ function VerifyOtpContent() {
       const normEmail = email.trim().toLowerCase();
       const defaultPass = `ChitTrust#2026!${normEmail.slice(0, 4)}`;
 
-      let passRes = await supabase.auth.signInWithPassword({
+      const signInRes = await supabase.auth.signInWithPassword({
         email: normEmail,
         password: defaultPass,
       });
 
-      if (passRes.error) {
-        passRes = await supabase.auth.signUp({
-          email: normEmail,
-          password: defaultPass,
-        });
+      if (signInRes.data?.session) {
+        const userId = signInRes.data.user?.id;
+        const profile = userId ? await fetchUserProfile(userId) : null;
+        await refreshProfile();
+        window.location.href = profile ? '/dashboard' : '/onboarding';
+        return;
       }
 
-      if (passRes.data?.session) {
-        const userId = passRes.data.user?.id;
+      const signUpRes = await supabase.auth.signUp({
+        email: normEmail,
+        password: defaultPass,
+      });
+
+      if (signUpRes.data?.session) {
+        const userId = signUpRes.data.user?.id;
         const profile = userId ? await fetchUserProfile(userId) : null;
         await refreshProfile();
         window.location.href = profile ? '/dashboard' : '/onboarding';
