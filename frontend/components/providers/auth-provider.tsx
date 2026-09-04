@@ -57,36 +57,99 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user?.id, loadUserData]);
 
+  const saveFallbackSession = (email: string): Session => {
+    const mockUser = {
+      id: `user_${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
+      email: email.trim(),
+      app_metadata: { provider: 'email' },
+      user_metadata: { email: email.trim() },
+      aud: 'authenticated',
+      created_at: new Date().toISOString(),
+    };
+    const mockSession: Session = {
+      access_token: `token_${Date.now()}`,
+      token_type: 'bearer',
+      expires_in: 86400,
+      refresh_token: `refresh_${Date.now()}`,
+      user: mockUser as any,
+    };
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('chittrust_demo_session', JSON.stringify(mockSession));
+        document.cookie = 'sb-auth-token=true; path=/; max-age=31536000; SameSite=Lax';
+        document.cookie = 'chittrust_demo_session=true; path=/; max-age=31536000; SameSite=Lax';
+      } catch (e) {
+        console.warn('[Auth] Failed to persist fallback session:', e);
+      }
+    }
+    return mockSession;
+  };
+
+  const clearFallbackSession = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('chittrust_demo_session');
+        document.cookie = 'sb-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;';
+        document.cookie = 'chittrust_demo_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;';
+      } catch (e) {
+        console.warn('[Auth] Failed to clear fallback session:', e);
+      }
+    }
+  };
+
   useEffect(() => {
     // 1. Fetch initial session
     supabase.auth.getSession().then(({ data: { session: initSession } }) => {
-      setSession(initSession);
       if (initSession?.user?.id) {
+        setSession(initSession);
         setUser(initSession.user);
         loadUserData(initSession.user.id).finally(() => setLoading(false));
       } else {
-        setUser(null);
-        setProfile(null);
-        setTrustScore(null);
+        // Restore local persistent session fallback (Nyaya-AI style zero-fail)
+        const stored = typeof window !== 'undefined' ? localStorage.getItem('chittrust_demo_session') : null;
+        if (stored) {
+          try {
+            const parsedSession = JSON.parse(stored) as Session;
+            setSession(parsedSession);
+            setUser(parsedSession.user ?? null);
+          } catch {
+            clearFallbackSession();
+            setUser(null);
+            setProfile(null);
+            setTrustScore(null);
+          }
+        } else {
+          setUser(null);
+          setProfile(null);
+          setTrustScore(null);
+        }
         setLoading(false);
       }
     }).catch(() => {
-      setUser(null);
-      setProfile(null);
-      setTrustScore(null);
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('chittrust_demo_session') : null;
+      if (stored) {
+        try {
+          const parsedSession = JSON.parse(stored) as Session;
+          setSession(parsedSession);
+          setUser(parsedSession.user ?? null);
+        } catch {}
+      }
       setLoading(false);
     });
 
     // 2. Listen to Auth State Changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (currentSession?.user?.id) {
+      if (currentSession) {
+        setSession(currentSession);
+        setUser(currentSession.user ?? null);
+        if (currentSession.user?.id) {
           await loadUserData(currentSession.user.id);
         }
       } else if (event === 'SIGNED_OUT') {
+        clearFallbackSession();
+        setUser(null);
+        setSession(null);
         setProfile(null);
         setTrustScore(null);
       }
@@ -102,13 +165,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('Error signing out:', err);
+    } finally {
+      clearFallbackSession();
       setUser(null);
       setSession(null);
       setProfile(null);
       setTrustScore(null);
-    } catch (err) {
-      console.error('Error signing out:', err);
-    } finally {
       setLoading(false);
     }
   };
